@@ -3,43 +3,42 @@ package rabbids
 import (
 	"time"
 
-	"github.com/creasty/defaults"
 	"github.com/streadway/amqp"
 )
+
+const Version = "0.0.1"
 
 // Config describes all available options for amqp connection creation.
 type Config struct {
 	// Connections describe the connections used by consumers.
-	Connections map[string]Connection `mapstructure:"connections" default:"{}"`
+	Connections map[string]Connection `mapstructure:"connections"`
 	// Exchanges have all the exchanges used by consumers.
 	// This exchanges are declared on startup of the rabbitMQ factory.
-	Exchanges map[string]ExchangeConfig `mapstructure:"exchanges" default:"{}"`
+	Exchanges map[string]ExchangeConfig `mapstructure:"exchanges"`
 	// DeadLetters have all the deadletters queues used internally by other queues
 	// This will be declared at startup of the rabbitMQ factory
-	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters" default:"{}"`
+	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters"`
 	// Consumers describes configuration list for consumers.
-	Consumers map[string]ConsumerConfig `mapstructure:"consumers" default:"{}"`
-	//Versioning internal config - used to mount the user agents
-	Version string
+	Consumers map[string]ConsumerConfig `mapstructure:"consumers"`
 }
 
 // Connection describe a config for one connection.
 type Connection struct {
 	DSN     string        `mapstructure:"dsn"`
-	Timeout time.Duration `mapstructure:"timeout" default:"2s"`
-	Sleep   time.Duration `mapstructure:"sleep" default:"500ms"`
-	Retries int           `mapstructure:"retries" default:"5"`
+	Timeout time.Duration `mapstructure:"timeout"`
+	Sleep   time.Duration `mapstructure:"sleep"`
+	Retries int           `mapstructure:"retries"`
 }
 
 // ConsumerConfig describes consumer's configuration.
 type ConsumerConfig struct {
 	Connection    string      `mapstructure:"connection"`
-	MaxWorkers    int         `mapstructure:"workers" default:"1"`
-	PrefetchCount int         `mapstructure:"prefetch_count" default:"10"`
+	Workers       int         `mapstructure:"workers"`
+	PrefetchCount int         `mapstructure:"prefetch_count"`
 	DeadLetter    string      `mapstructure:"dead_letter"`
 	Queue         QueueConfig `mapstructure:"queue"`
 	Options       Options     `mapstructure:"options"`
-	Runner        interface{} `mapstructure:"runner"`
+	Handler       string      `mapstructure:"handler"`
 }
 
 // ExchangeConfig describes exchange's configuration.
@@ -76,44 +75,32 @@ type Options struct {
 	NoWait     bool       `mapstructure:"no_wait"`
 	NoLocal    bool       `mapstructure:"no_local"`
 	AutoAck    bool       `mapstructure:"auto_ack"`
-	Args       amqp.Table `mapstructure:"args" default:"{}"`
+	Args       amqp.Table `mapstructure:"args"`
 }
 
-func setConfigDefaults(config *Config) error {
-	if err := defaults.Set(config); err != nil {
-		return err
-	}
-
+func setConfigDefaults(config *Config) {
 	for k := range config.Connections {
 		cfg := config.Connections[k]
-		if err := defaults.Set(&cfg); err != nil {
-			return err
+		if cfg.Retries == 0 {
+			cfg.Retries = 5
+		}
+		if cfg.Sleep == 0 {
+			cfg.Sleep = 500 * time.Millisecond
+		}
+		if cfg.Timeout == 0 {
+			cfg.Timeout = 2 * time.Second
 		}
 		config.Connections[k] = cfg
 	}
 
 	for k := range config.Consumers {
 		cfg := config.Consumers[k]
-		if err := defaults.Set(&cfg); err != nil {
-			return err
+		if cfg.Workers <= 0 {
+			cfg.Workers = 1
+		}
+		if cfg.PrefetchCount <= 0 {
+			cfg.PrefetchCount = cfg.Workers + 2 // we need at least 2 more messages than our worker to be able to see workers blocked
 		}
 		config.Consumers[k] = cfg
 	}
-
-	for k := range config.DeadLetters {
-		cfg := config.DeadLetters[k]
-		if err := defaults.Set(&cfg); err != nil {
-			return err
-		}
-		config.DeadLetters[k] = cfg
-	}
-
-	for k := range config.Exchanges {
-		cfg := config.Exchanges[k]
-		if err := defaults.Set(&cfg); err != nil {
-			return err
-		}
-		config.Exchanges[k] = cfg
-	}
-	return nil
 }
