@@ -16,15 +16,15 @@ import (
 
 // Factory is the block responsible for create consumers and restart the rabbitMQ connections.
 type Factory struct {
-	config Config
+	config *Config
 	conns  map[string]*amqp.Connection
 	log    LoggerFN
 	number int64
 }
 
 // NewFactory will open the initial connections and start the recover connections procedure.
-func NewFactory(config Config, log LoggerFN) (*Factory, error) {
-	setConfigDefaults(&config)
+func NewFactory(config *Config, log LoggerFN) (*Factory, error) {
+	setConfigDefaults(config)
 	conns := make(map[string]*amqp.Connection)
 	for name, cfgConn := range config.Connections {
 		log("opening connection with rabbitMQ", Fields{
@@ -89,6 +89,10 @@ func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*consumer, error
 		return nil, fmt.Errorf("failed to set QoS: %w", err)
 	}
 
+	handler, ok := f.config.Handlers[name]
+	if !ok {
+		return nil, fmt.Errorf("failed to create the \"%s\" consumer, Handler not registered", name)
+	}
 	f.log("consumer created",
 		Fields{
 			"max-workers": cfg.Workers,
@@ -96,13 +100,13 @@ func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*consumer, error
 		})
 
 	return &consumer{
-		queue:   cfg.Queue.Name,
-		name:    name,
-		number:  atomic.AddInt64(&f.number, 1),
-		opts:    cfg.Options,
-		channel: ch,
-		t:       tomb.Tomb{},
-		// runner:      runner,
+		queue:      cfg.Queue.Name,
+		name:       name,
+		number:     atomic.AddInt64(&f.number, 1),
+		opts:       cfg.Options,
+		channel:    ch,
+		t:          tomb.Tomb{},
+		handler:    handler,
 		workerPool: grpool.NewPool(cfg.Workers, 0),
 	}, nil
 }

@@ -19,6 +19,9 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 	m := &Manager{
 		checkAliveness: intervalChecks,
 		factory:        factory,
+		log:            log,
+		consumers:      map[string]*consumer{},
+		close:          make(chan struct{}),
 	}
 
 	cs, err := m.factory.CreateConsumers()

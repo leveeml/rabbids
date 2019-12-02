@@ -1,0 +1,40 @@
+connections:
+  default:
+    dsn: "amqp://localhost:5672"
+    timeout: 1s
+    sleep: 500ms
+exchanges:
+  event_bus:
+    type: topic
+    options:
+      no_wait: false
+  fallback:
+    type: topic
+dead_letters:
+  fallback:
+    queue:
+      name: "fallback"
+      options:
+        durable: true
+        args:
+          "x-dead-letter-exchange": ""
+          "x-message-ttl": 300000
+      bindings:
+        - routing_keys: ["#"]
+          exchange: fallback
+consumers:
+  messaging_consumer:
+    connection: default
+    dead_letter: fallback
+    queue:
+      name: "messaging_send"
+      options:
+        durable: true
+        args:
+          "x-dead-letter-exchange": "fallback"
+          "x-dead-letter-routing-key": "messaging_send"
+      bindings:
+        - routing_keys:
+            - "service.whatssapp.send"
+            - "service.sms.send"
+          exchange: event_bus
