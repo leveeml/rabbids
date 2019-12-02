@@ -1,9 +1,14 @@
 package rabbids
 
 import (
+	"fmt"
+	"path/filepath"
 	"time"
 
+	"github.com/a8m/envsubst"
+	"github.com/mitchellh/mapstructure"
 	"github.com/streadway/amqp"
+	yaml "gopkg.in/yaml.v3"
 )
 
 const Version = "0.0.1"
@@ -20,6 +25,8 @@ type Config struct {
 	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters"`
 	// Consumers describes configuration list for consumers.
 	Consumers map[string]ConsumerConfig `mapstructure:"consumers"`
+	// Registered Message handlers used by consumers
+	Handlers map[string]MessageHandler
 }
 
 // Connection describe a config for one connection.
@@ -38,7 +45,6 @@ type ConsumerConfig struct {
 	DeadLetter    string      `mapstructure:"dead_letter"`
 	Queue         QueueConfig `mapstructure:"queue"`
 	Options       Options     `mapstructure:"options"`
-	Handler       string      `mapstructure:"handler"`
 }
 
 // ExchangeConfig describes exchange's configuration.
@@ -103,4 +109,53 @@ func setConfigDefaults(config *Config) {
 		}
 		config.Consumers[k] = cfg
 	}
+}
+
+func (c *Config) RegisterHandler(name string, h MessageHandler) {
+	if c.Handlers == nil {
+		c.Handlers = map[string]MessageHandler{}
+	}
+	c.Handlers[name] = h
+}
+
+func ConfigFromFile(filename string) (*Config, error) {
+	input := map[string]interface{}{}
+	ouput := &Config{}
+	in, err := envsubst.ReadFileRestricted(filename, true, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the file: %w", err)
+	}
+	switch getConfigType(filename) {
+	case "yaml", "yml":
+		err = yaml.Unmarshal(in, &input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode the yaml configuration. %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("file extension %s not supported", getConfigType(filename))
+	}
+
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Metadata:         nil,
+		Result:           ouput,
+		WeaklyTypedInput: true,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		),
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = decoder.Decode(input)
+	return ouput, err
+}
+
+func getConfigType(file string) string {
+	ext := filepath.Ext(file)
+
+	if len(ext) > 1 {
+		return ext[1:]
+	}
+	return ""
 }
