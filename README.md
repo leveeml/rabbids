@@ -4,13 +4,4 @@
 
 # Rabbids
 
-A library to create AMPQ consumers in a nice way
-
-# Features
-
-- [ ] Create Consumers from configs
-- [ ] Create Producers from configs
-- [ ] Restart consumers/producers in case of disconect
-- [ ] Rabbids manager
-- [ ] Restart of consumers/producers
-- [ ] Graceful shutdown
+A library to create AMQP consumers in a nice way
