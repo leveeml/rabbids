@@ -25,61 +25,73 @@ type Factory struct {
 // NewFactory will open the initial connections and start the recover connections procedure.
 func NewFactory(config *Config, log LoggerFN) (*Factory, error) {
 	setConfigDefaults(config)
+
 	conns := make(map[string]*amqp.Connection)
+
 	for name, cfgConn := range config.Connections {
 		log("opening connection with rabbitMQ", Fields{
 			"sleep":      cfgConn.Sleep,
 			"timeout":    cfgConn.Timeout,
 			"connection": name,
 		})
+
 		conn, err := openConnection(cfgConn)
 		if err != nil {
 			return nil, fmt.Errorf("error opening the connection \"%s\": %w", name, err)
 		}
+
 		conns[name] = conn
 	}
+
 	f := &Factory{
 		config: config,
 		conns:  conns,
 		log:    log,
 		number: 0,
 	}
+
 	return f, nil
 }
 
 // CreateConsumers will iterate over config and create all the consumers
-func (f *Factory) CreateConsumers() ([]*consumer, error) {
-	var consumers []*consumer
+func (f *Factory) CreateConsumers() ([]*Consumer, error) {
+	var consumers []*Consumer
+
 	for name, cfg := range f.config.Consumers {
 		consumer, err := f.newConsumer(name, cfg)
 		if err != nil {
 			return consumers, err
 		}
+
 		consumers = append(consumers, consumer)
 	}
+
 	return consumers, nil
 }
 
 // CreateConsumer create a new consumer for a specific name using the config provided.
-func (f *Factory) CreateConsumer(name string) (*consumer, error) {
+func (f *Factory) CreateConsumer(name string) (*Consumer, error) {
 	cfg, ok := f.config.Consumers[name]
 	if !ok {
 		return nil, fmt.Errorf("consumer \"%s\" did not exist", name)
 	}
+
 	return f.newConsumer(name, cfg)
 }
 
-func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*consumer, error) {
+func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*Consumer, error) {
 	ch, err := f.getChannel(cfg.Connection)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open the rabbitMQ channel for consumer %s: %w", name, err)
 	}
+
 	if len(cfg.DeadLetter) > 0 {
 		err = f.declareDeadLetters(ch, cfg.DeadLetter)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	err = f.declareQueue(ch, cfg.Queue)
 	if err != nil {
 		return nil, err
@@ -93,13 +105,14 @@ func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*consumer, error
 	if !ok {
 		return nil, fmt.Errorf("failed to create the \"%s\" consumer, Handler not registered", name)
 	}
+
 	f.log("consumer created",
 		Fields{
 			"max-workers": cfg.Workers,
 			"consumer":    name,
 		})
 
-	return &consumer{
+	return &Consumer{
 		queue:      cfg.Queue.Name,
 		name:       name,
 		number:     atomic.AddInt64(&f.number, 1),
@@ -115,17 +128,19 @@ func (f *Factory) declareExchange(ch *amqp.Channel, name string) error {
 	if len(name) == 0 {
 		return fmt.Errorf("receive a blank exchange. Wrong config?")
 	}
+
 	ex, ok := f.config.Exchanges[name]
 	if !ok {
 		f.log("exchange config didn't exist, we will try to continue", Fields{"name": name})
 		return nil
 	}
+
 	f.log("declaring exchange", Fields{
 		"ex":      name,
 		"type":    ex.Type,
 		"options": ex.Options,
-	},
-	)
+	})
+
 	err := ch.ExchangeDeclare(
 		name,
 		ex.Type,
@@ -137,6 +152,7 @@ func (f *Factory) declareExchange(ch *amqp.Channel, name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to declare the exchange %s, err: %w", name, err)
 	}
+
 	return nil
 }
 
@@ -144,8 +160,8 @@ func (f *Factory) declareQueue(ch *amqp.Channel, queue QueueConfig) error {
 	f.log("declaring queue", Fields{
 		"queue":   queue.Name,
 		"options": queue.Options,
-	},
-	)
+	})
+
 	q, err := ch.QueueDeclare(
 		queue.Name,
 		queue.Options.Durable,
@@ -161,12 +177,13 @@ func (f *Factory) declareQueue(ch *amqp.Channel, queue QueueConfig) error {
 		f.log("declaring queue bind", Fields{
 			"queue":    queue.Name,
 			"exchange": b.Exchange,
-		},
-		)
+		})
+
 		err = f.declareExchange(ch, b.Exchange)
 		if err != nil {
 			return err
 		}
+
 		for _, k := range b.RoutingKeys {
 			err = ch.QueueBind(q.Name, k, b.Exchange,
 				b.Options.NoWait, assertRightTableTypes(b.Options.Args))
@@ -175,17 +192,21 @@ func (f *Factory) declareQueue(ch *amqp.Channel, queue QueueConfig) error {
 			}
 		}
 	}
+
 	return nil
 }
 
 func (f *Factory) declareDeadLetters(ch *amqp.Channel, name string) error {
 	f.log("declaring deadletter", Fields{"dlx": name})
+
 	dead, ok := f.config.DeadLetters[name]
 	if !ok {
 		f.log("deadletter config didn't exist, we will try to continue", Fields{"dlx": name})
 		return nil
 	}
+
 	err := f.declareQueue(ch, dead.Queue)
+
 	return errors.Wrapf(err, "failed to declare the queue for deadletter %s", name)
 }
 
@@ -196,6 +217,7 @@ func (f *Factory) getChannel(connectionName string) (*amqp.Channel, error) {
 		for name := range f.conns {
 			available = append(available, name)
 		}
+
 		return nil, fmt.Errorf(
 			"connection (%s) did not exist, connections names available: %s",
 			connectionName,
@@ -204,6 +226,7 @@ func (f *Factory) getChannel(connectionName string) (*amqp.Channel, error) {
 
 	var ch *amqp.Channel
 	var errCH error
+
 	conn := f.conns[connectionName]
 	ch, errCH = conn.Channel()
 	// Reconnect the connection when receive an connection closed error
@@ -216,18 +239,22 @@ func (f *Factory) getChannel(connectionName string) (*amqp.Channel, error) {
 				"connection": connectionName,
 			},
 		)
+
 		conn, err := openConnection(cfgConn)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reopening the connection \"%s\"", connectionName)
 		}
+
 		f.conns[connectionName] = conn
 		ch, errCH = conn.Channel()
 	}
+
 	return ch, errCH
 }
 
 func openConnection(config Connection) (*amqp.Connection, error) {
 	var conn *amqp.Connection
+
 	err := retry.Do(func() error {
 		var err error
 		conn, err = amqp.DialConfig(config.DSN, amqp.Config{
@@ -241,11 +268,13 @@ func openConnection(config Connection) (*amqp.Connection, error) {
 		})
 		return err
 	}, 5, config.Sleep)
+
 	return conn, err
 }
 
 func assertRightTableTypes(args amqp.Table) amqp.Table {
 	nArgs := amqp.Table{}
+
 	for k, v := range args {
 		switch v := v.(type) {
 		case int:
@@ -254,5 +283,6 @@ func assertRightTableTypes(args amqp.Table) amqp.Table {
 			nArgs[k] = v
 		}
 	}
+
 	return nArgs
 }

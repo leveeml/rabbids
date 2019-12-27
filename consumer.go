@@ -10,7 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type consumer struct {
+type Consumer struct {
 	handler    MessageHandler
 	number     int64
 	name       string
@@ -23,7 +23,7 @@ type consumer struct {
 }
 
 // Run start a goroutine to consume messages and pass to one runner.
-func (c *consumer) Run() {
+func (c *Consumer) Run() {
 	c.t.Go(func() error {
 		defer func() {
 			err := c.channel.Close()
@@ -72,17 +72,17 @@ func (c *consumer) Run() {
 }
 
 // Kill will try to stop the internal work.
-func (c *consumer) Kill() {
+func (c *Consumer) Kill() {
 	c.t.Kill(nil)
 	<-c.t.Dead()
 }
 
 // Alive returns true if the tomb is not in a dying or dead state.
-func (c *consumer) Alive() bool {
+func (c *Consumer) Alive() bool {
 	return c.t.Alive()
 }
 
 // Name return the consumer name
-func (c *consumer) Name() string {
+func (c *Consumer) Name() string {
 	return c.name
 }

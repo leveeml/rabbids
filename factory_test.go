@@ -11,6 +11,7 @@ func Test_assertRightArgsTypes(t *testing.T) {
 	type args struct {
 		args amqp.Table
 	}
+
 	tests := []struct {
 		name string
 		args args

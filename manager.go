@@ -9,7 +9,7 @@ import (
 type Manager struct {
 	checkAliveness time.Duration
 	factory        *Factory
-	consumers      map[string]*consumer
+	consumers      map[string]*Consumer
 	close          chan struct{}
 	log            LoggerFN
 }
@@ -20,7 +20,7 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 		checkAliveness: intervalChecks,
 		factory:        factory,
 		log:            log,
-		consumers:      map[string]*consumer{},
+		consumers:      map[string]*Consumer{},
 		close:          make(chan struct{}),
 	}
 
@@ -28,6 +28,7 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 	if err != nil {
 		return nil, err
 	}
+
 	for _, c := range cs {
 		c.Run()
 		m.consumers[c.Name()] = c
@@ -35,12 +36,14 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 
 	//we use a Manager as a program structure and didn`t need to close this goroutines
 	go m.checks()
+
 	return m, nil
 }
 
 // work will execute all te operations received from the internal operation channel
 func (m *Manager) checks() {
 	ticker := time.NewTicker(m.checkAliveness)
+
 	for {
 		select {
 		case <-m.close:
@@ -53,7 +56,6 @@ func (m *Manager) checks() {
 			m.restartDeadConsumers()
 		}
 	}
-
 }
 
 // Stop all the consumers
@@ -68,14 +70,17 @@ func (m *Manager) restartDeadConsumers() {
 			m.log("recreating one consumer", Fields{
 				"consumer-name": name,
 			})
+
 			nc, err := m.factory.CreateConsumer(name)
 			if err != nil {
 				m.log("error recreating one consumer", Fields{
 					"consumer-name": name,
 					"error":         err,
 				})
+
 				continue
 			}
+
 			delete(m.consumers, name)
 			m.consumers[name] = nc
 			nc.Run()
