@@ -9,10 +9,10 @@ setup: ## Install all the build and lint dependencies
 	go get -v -t ./...
 
 test: ## Run all the tests
-	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -timeout=1m -cover -json $(SOURCE_FILES) | tparse -all
+	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -timeout=1m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -all
 
 integration: ## Run all the integration tests
-	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -tags integration -timeout=5m -cover -json $(SOURCE_FILES) | tparse -all
+	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -tags integration -timeout=5m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -all
 
 
 bench: ## Run the benchmark tests
