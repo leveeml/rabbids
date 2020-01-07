@@ -90,12 +90,15 @@ func setConfigDefaults(config *Config) {
 		if cfg.Retries == 0 {
 			cfg.Retries = 5
 		}
+
 		if cfg.Sleep == 0 {
 			cfg.Sleep = 500 * time.Millisecond
 		}
+
 		if cfg.Timeout == 0 {
 			cfg.Timeout = 2 * time.Second
 		}
+
 		config.Connections[k] = cfg
 	}
 
@@ -104,9 +107,12 @@ func setConfigDefaults(config *Config) {
 		if cfg.Workers <= 0 {
 			cfg.Workers = 1
 		}
+
 		if cfg.PrefetchCount <= 0 {
-			cfg.PrefetchCount = cfg.Workers + 2 // we need at least 2 more messages than our worker to be able to see workers blocked
+			// we need at least 2 more messages than our worker to be able to see workers blocked
+			cfg.PrefetchCount = cfg.Workers + 2
 		}
+
 		config.Consumers[k] = cfg
 	}
 }
@@ -115,16 +121,19 @@ func (c *Config) RegisterHandler(name string, h MessageHandler) {
 	if c.Handlers == nil {
 		c.Handlers = map[string]MessageHandler{}
 	}
+
 	c.Handlers[name] = h
 }
 
 func ConfigFromFile(filename string) (*Config, error) {
 	input := map[string]interface{}{}
-	ouput := &Config{}
+	output := &Config{}
+
 	in, err := envsubst.ReadFileRestricted(filename, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the file: %w", err)
 	}
+
 	switch getConfigType(filename) {
 	case "yaml", "yml":
 		err = yaml.Unmarshal(in, &input)
@@ -137,7 +146,7 @@ func ConfigFromFile(filename string) (*Config, error) {
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Metadata:         nil,
-		Result:           ouput,
+		Result:           output,
 		WeaklyTypedInput: true,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
@@ -147,8 +156,10 @@ func ConfigFromFile(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = decoder.Decode(input)
-	return ouput, err
+
+	return output, err
 }
 
 func getConfigType(file string) string {
@@ -157,5 +168,6 @@ func getConfigType(file string) string {
 	if len(ext) > 1 {
 		return ext[1:]
 	}
+
 	return ""
 }
