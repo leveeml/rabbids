@@ -262,8 +262,9 @@ func openConnection(config Connection) (*amqp.Connection, error) {
 				return net.DialTimeout(network, addr, config.Timeout)
 			},
 			Properties: amqp.Table{
-				"product": "rabbids",
-				"version": Version,
+				"information": "https://github.com/EmpregoLigado/rabbids",
+				"product":     "Rabbids",
+				"version":     Version,
 			},
 		})
 		return err
