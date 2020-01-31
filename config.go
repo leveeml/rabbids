@@ -11,7 +11,12 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-const Version = "0.0.1"
+const (
+	Version        = "0.0.1"
+	DefaultTimeout = 10 * time.Second
+	DefaultSleep   = 500 * time.Millisecond
+	DefaultRetries = 5
+)
 
 // Config describes all available options for amqp connection creation.
 type Config struct {
@@ -88,15 +93,15 @@ func setConfigDefaults(config *Config) {
 	for k := range config.Connections {
 		cfg := config.Connections[k]
 		if cfg.Retries == 0 {
-			cfg.Retries = 5
+			cfg.Retries = DefaultRetries
 		}
 
 		if cfg.Sleep == 0 {
-			cfg.Sleep = 500 * time.Millisecond
+			cfg.Sleep = DefaultSleep
 		}
 
 		if cfg.Timeout == 0 {
-			cfg.Timeout = 2 * time.Second
+			cfg.Timeout = DefaultTimeout
 		}
 
 		config.Connections[k] = cfg
