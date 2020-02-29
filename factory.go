@@ -121,6 +121,7 @@ func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*Consumer, error
 		t:          tomb.Tomb{},
 		handler:    handler,
 		workerPool: grpool.NewPool(cfg.Workers, 0),
+		log:        f.log,
 	}, nil
 }
 

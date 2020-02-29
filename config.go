@@ -13,7 +13,7 @@ import (
 
 const (
 	Version        = "0.0.1"
-	DefaultTimeout = 10 * time.Second
+	DefaultTimeout = 2 * time.Second
 	DefaultSleep   = 500 * time.Millisecond
 	DefaultRetries = 5
 )

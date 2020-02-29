@@ -26,6 +26,9 @@ type Consumer struct {
 func (c *Consumer) Run() {
 	c.t.Go(func() error {
 		defer func() {
+			if c.channel == nil {
+				return
+			}
 			err := c.channel.Close()
 			if err != nil {
 				c.log("Error closing the consumer channel", Fields{"error": err, "name": c.name})
