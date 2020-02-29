@@ -26,7 +26,6 @@ type PublishingError struct {
 func NewPublishing(exchange, key string, options ...PublishingOption) Publishing {
 	id, err := uuid.NewRandom()
 	if err != nil {
-		// TODO add log?
 		id = uuid.Must(uuid.NewUUID())
 	}
 

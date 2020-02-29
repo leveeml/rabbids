@@ -69,6 +69,7 @@ func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 	}
 }
 
+//nolint:unparam
 func sendMessages(t *testing.T, resource *dockertest.Resource, ex, key string, start, count int) {
 	t.Helper()
 

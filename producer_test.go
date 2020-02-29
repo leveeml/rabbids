@@ -29,6 +29,5 @@ func TestConnectionErrors(t *testing.T) {
 
 		require.Error(t, err, "expect to return an error")
 		require.EqualError(t, err, "dial tcp 10.255.255.1:5672: i/o timeout")
-
 	})
 }

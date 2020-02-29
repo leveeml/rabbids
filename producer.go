@@ -16,6 +16,7 @@ type Producer struct {
 	ch      *amqp.Channel
 	emit    chan Publishing
 	emitErr chan PublishingError
+	log     LoggerFN
 }
 
 func NewProducerFromDSN(dsn string) (*Producer, error) {
@@ -28,21 +29,29 @@ func NewProducerFromDSN(dsn string) (*Producer, error) {
 		},
 		emit:    make(chan Publishing, 250),
 		emitErr: make(chan PublishingError, 250),
+		log:     NoOPLoggerFN,
 	}
 	err := p.startConnection()
 
 	return p, err
 }
 
+// NewProducerFromConfig create a new producer passing
 func NewProducerFromConfig(c Connection) (*Producer, error) {
 	p := &Producer{
 		Conf:    c,
 		emit:    make(chan Publishing, 250),
 		emitErr: make(chan PublishingError, 250),
+		log:     NoOPLoggerFN,
 	}
 	err := p.startConnection()
 
 	return p, err
+}
+
+// WithLogger will override the default logger (no Operation Log)
+func (p *Producer) WithLogger(log LoggerFN) {
+	p.log = log
 }
 
 func (p *Producer) startConnection() error {
@@ -145,12 +154,15 @@ func (p *Producer) GetAMPQChannel() *amqp.Channel {
 }
 
 func (p *Producer) handleAMPQClose(err error) {
+	p.log("ampq connection closed", Fields{"error": err})
+
 	for {
 		connErr := p.startConnection()
 		if connErr == nil {
 			return
 		}
-		// TODO: Add log or hook for this type of error
+
+		p.log("ampq reconnection failed", Fields{"error": err})
 		time.Sleep(time.Second)
 	}
 }
