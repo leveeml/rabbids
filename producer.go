@@ -50,10 +50,14 @@ func (p *Producer) startConnection() error {
 	if err != nil {
 		return err
 	}
+
 	p.Lock()
+
 	p.conn = conn
 	p.ch, err = p.conn.Channel()
+
 	p.Unlock()
+
 	return err
 }
 

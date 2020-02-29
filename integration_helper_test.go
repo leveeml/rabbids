@@ -27,6 +27,8 @@ func getDSN(resource *dockertest.Resource) string {
 }
 
 func getRabbitClient(t *testing.T, resource *dockertest.Resource) *rabbithole.Client {
+	t.Helper()
+
 	client, err := rabbithole.NewClient(
 		fmt.Sprintf("http://localhost:%s", resource.GetPort("15672/tcp")),
 		"guest", "guest")
@@ -37,16 +39,20 @@ func getRabbitClient(t *testing.T, resource *dockertest.Resource) *rabbithole.Cl
 
 // close all open connections to the rabbitmq via the management api
 func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
+	t.Helper()
+
 	conns := make(chan []rabbithole.ConnectionInfo)
 
 	go func() {
 		for {
 			connections, err := client.ListConnections()
 			require.NoError(t, err, "failed to get the connections")
+
 			if len(connections) >= 1 {
 				conns <- connections
 				break
 			}
+
 			time.Sleep(time.Second)
 		}
 	}()
@@ -64,8 +70,11 @@ func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 }
 
 func sendMessages(t *testing.T, resource *dockertest.Resource, ex, key string, start, count int) {
+	t.Helper()
+
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://localhost:%s", resource.GetPort("5672/tcp")))
 	require.NoError(t, err, "failed to open a new connection for tests")
+
 	ch, err := conn.Channel()
 	require.NoError(t, err, "failed to open a channel for tests")
 
@@ -78,10 +87,11 @@ func sendMessages(t *testing.T, resource *dockertest.Resource, ex, key string, s
 }
 
 func getConfigHelper(t *testing.T, configFile string) *rabbids.Config {
+	t.Helper()
+
 	config, err := rabbids.ConfigFromFile(filepath.Join("testdata", configFile))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	return config
 }
 
@@ -94,22 +104,29 @@ func logFNHelper(tb testing.TB) rabbids.LoggerFN {
 	return func(message string, fields rabbids.Fields) {
 		pattern := message + " fields: "
 		values := []interface{}{}
+
 		for k, v := range fields {
 			pattern += "%s=%v "
+
 			values = append(values, k, v)
 		}
+
 		tb.Logf(pattern, values...)
 	}
 }
 
 func getChannelHelper(tb testing.TB, resource *dockertest.Resource) *amqp.Channel {
+	tb.Helper()
+
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://localhost:%s", resource.GetPort("5672/tcp")))
 	if err != nil {
 		tb.Fatal("Failed to connect with rabbitMQ: ", err)
 	}
+
 	ch, err := conn.Channel()
 	if err != nil {
 		tb.Fatal("Failed to create a new channel: ", err)
 	}
+
 	return ch
 }

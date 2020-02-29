@@ -76,26 +76,32 @@ func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
 	config := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
 	config.Connections["default"] = setDSN(resource, config.Connections["default"])
 
-	handler := &mockHandler{count: 0, ack: true}
+	handler := &mockHandler{count: 0, ack: true, tb: t}
 	config.RegisterHandler("messaging_consumer", handler)
 	factory, err := rabbids.NewFactory(config, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the factory")
 	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Manager")
+
 	defer manager.Stop()
+
 	ch := getChannelHelper(t, resource)
+
 	for i := 0; i < 5; i++ {
 		err = ch.Publish("event_bus", "service.whatssapp.send", false, false, amqp.Publishing{
 			Body: []byte(`{"fooo": "bazzz"}`),
 		})
 		require.NoError(t, err, "error publishing to rabbitMQ")
 	}
+
 	<-time.After(400 * time.Millisecond)
 	require.EqualValues(t, 5, handler.messagesProcessed())
+
 	for _, cfg := range config.Consumers {
 		_, err := ch.QueueDelete(cfg.Queue.Name, false, false, false)
 		require.NoError(t, err)
 	}
+
 	for name := range config.Exchanges {
 		err := ch.ExchangeDelete(name, false, false)
 		require.NoError(t, err)
@@ -109,7 +115,8 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	received := make(chan string, 10)
 	handler := rabbids.MessageHandlerFunc(func(m rabbids.Message) {
 		received <- string(m.Body)
-		m.Ack(false)
+		err := m.Ack(false)
+		require.NoError(t, err, "failed to ack the message")
 	})
 	config.RegisterHandler("send_consumer", handler)
 	config.RegisterHandler("response_consumer", handler)
@@ -117,6 +124,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.NoError(t, err, "failed to create the rabbids factory")
 	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Manager")
+
 	defer manager.Stop()
 
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 0, 2)
@@ -138,15 +146,23 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 type mockHandler struct {
 	count int64
 	ack   bool
+	tb    testing.TB
 }
 
 func (m *mockHandler) Handle(msg rabbids.Message) {
 	atomic.AddInt64(&m.count, 1)
+
 	if m.ack {
-		msg.Ack(false)
+		if err := msg.Ack(false); err != nil {
+			m.tb.Errorf("Failed to ack the message. err: %v, tag: %d", err, msg.DeliveryTag)
+		}
+
 		return
 	}
-	msg.Nack(false, false)
+
+	if err := msg.Nack(false, false); err != nil {
+		m.tb.Errorf("Failed to nack the message. err: %v, tag: %d", err, msg.DeliveryTag)
+	}
 }
 
 func (m *mockHandler) Close() {}
