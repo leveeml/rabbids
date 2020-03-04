@@ -7,7 +7,6 @@ import (
 
 	"github.com/empregoligado/rabbids"
 	"github.com/streadway/amqp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ory-am/dockertest.v3"
 )
@@ -68,8 +67,7 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	go func() {
 		defer wg.Done()
 
-		err := rab.Run()
-		assert.NoError(t, err, "returned unexpected error from run")
+		rab.Run()
 	}()
 
 	go func() {

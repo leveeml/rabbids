@@ -10,13 +10,14 @@ import (
 )
 
 type Producer struct {
-	sync.RWMutex
-	Conf    Connection
-	conn    *amqp.Connection
-	ch      *amqp.Channel
-	emit    chan Publishing
-	emitErr chan PublishingError
-	log     LoggerFN
+	mutex       sync.RWMutex
+	Conf        Connection
+	conn        *amqp.Connection
+	ch          *amqp.Channel
+	emit        chan Publishing
+	emitErr     chan PublishingError
+	notifyClose chan *amqp.Error
+	log         LoggerFN
 }
 
 func NewProducerFromDSN(dsn string) (*Producer, error) {
@@ -55,39 +56,44 @@ func (p *Producer) WithLogger(log LoggerFN) {
 }
 
 func (p *Producer) startConnection() error {
+	p.log("opening a new rabbitmq connection", Fields{})
 	conn, err := openConnection(p.Conf)
+
 	if err != nil {
 		return err
 	}
 
-	p.Lock()
+	p.mutex.Lock()
 
 	p.conn = conn
 	p.ch, err = p.conn.Channel()
+	p.notifyClose = p.conn.NotifyClose(make(chan *amqp.Error))
 
-	p.Unlock()
+	p.mutex.Unlock()
 
 	return err
 }
 
-func (p *Producer) Run() error {
-	notifyClose := p.conn.NotifyClose(make(chan *amqp.Error))
-
+// Run starts rabbids channels for emitting and listening for amqp connections closed
+// returns when the producer is shutting down.
+func (p *Producer) Run() {
 	for {
 		select {
-		case err := <-notifyClose:
+		case err := <-p.notifyClose:
 			if err == nil {
-				return nil // graceful shutdown
+				return // graceful shutdown
 			}
 
 			p.handleAMPQClose(err)
-			notifyClose = p.conn.NotifyClose(make(chan *amqp.Error))
 		case pub, ok := <-p.emit:
 			if !ok {
-				return nil // graceful shutdown
+				return // graceful shutdown
 			}
 
-			p.send(pub)
+			err := p.Send(pub)
+			if err != nil {
+				p.tryToEmitErr(pub, err)
+			}
 		}
 	}
 }
@@ -102,23 +108,23 @@ func (p *Producer) Emit() chan<- Publishing { return p.emit }
 // WARNING: If the channel gets full, new errors will be dropped to avoid stop the producer internal loop.
 func (p *Producer) EmitErr() <-chan PublishingError { return p.emitErr }
 
-func (p *Producer) send(m Publishing) {
+// Send a message to rabbitMQ.
+// In case of connection errors, the send will block and retry until the reconnection is done.
+// It returns an error if the Publishing options returned an error OR the connection error persisted after the retries.
+func (p *Producer) Send(m Publishing) error {
 	for _, op := range m.options {
 		if err := op(&m); err != nil {
-			p.tryToEmitErr(m, err)
-			return
+			return err
 		}
 	}
 
-	p.RLock()
-	err := retry.Do(func() error {
-		return p.ch.Publish(m.Exchange, m.Key, false, false, m.Publishing)
-	}, 5, 100*time.Microsecond)
-	p.RUnlock()
+	return retry.Do(func() error {
+		p.mutex.RLock()
+		err := p.ch.Publish(m.Exchange, m.Key, false, false, m.Publishing)
+		p.mutex.RUnlock()
 
-	if err != nil {
-		p.tryToEmitErr(m, err)
-	}
+		return err
+	}, 10, 10*time.Millisecond)
 }
 
 func (p *Producer) tryToEmitErr(m Publishing, err error) {
@@ -129,9 +135,11 @@ func (p *Producer) tryToEmitErr(m Publishing, err error) {
 	}
 }
 
+// Close will close all the underline channels and close the connection with rabbitMQ.
+// Any Emit call after calling the Close method will panic.
 func (p *Producer) Close() error {
-	p.RLock()
-	defer p.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 
 	if p.ch != nil && p.conn != nil && !p.conn.IsClosed() {
 		if err := p.ch.Close(); err != nil {
@@ -149,6 +157,7 @@ func (p *Producer) Close() error {
 	return nil
 }
 
+// GetAMQPChannel returns the current connection channel.
 func (p *Producer) GetAMPQChannel() *amqp.Channel {
 	return p.ch
 }
@@ -162,7 +171,7 @@ func (p *Producer) handleAMPQClose(err error) {
 			return
 		}
 
-		p.log("ampq reconnection failed", Fields{"error": err})
+		p.log("ampq reconnection failed", Fields{"error": connErr})
 		time.Sleep(time.Second)
 	}
 }
