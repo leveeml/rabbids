@@ -92,12 +92,24 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 
 	err = rab.Close()
 	require.NoError(t, err, "error closing the connection")
-
 	wg.Wait()
-	time.Sleep(10 * time.Second)
 
-	info, err := adminClient.GetQueue("/", "testProducerWithReconnect")
-	require.NoError(t, err, "error getting the queue info")
+	timeout := time.After(20 * time.Second)
 
-	require.EqualValues(t, 1000, info.Messages, "expecting all the messages on the queue")
+	for {
+		info, err := adminClient.GetQueue("/", "testProducerWithReconnect")
+		require.NoError(t, err, "error getting the queue info")
+
+		if info.Messages == 1000 {
+			break
+		}
+		select {
+		case <-timeout:
+			require.EqualValues(t, 1000, info.Messages, "expecting all the messages on the queue")
+			break
+		default:
+			time.Sleep(time.Second)
+		}
+	}
+
 }
