@@ -1,0 +1,74 @@
+name: reviewdog
+on: [pull_request]
+jobs:
+  # NOTE: golangci-lint doesn't report multiple errors on the same line from
+  # different linters and just report one of the errors?
+
+  golangci-lint:
+    name: runner / golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: golangci-lint
+        uses: docker://reviewdog/action-golangci-lint:v1 # Pre-built image
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--config=.golangci.yml -D golint -D errcheck"
+
+  # Use golint via golangci-lint binary with "warning" level.
+  golint:
+    name: runner / golint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: golint
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--disable-all -E golint"
+          tool_name: golint # Change reporter name.
+          level: warning # GitHub Status Check won't become failure with this level.
+
+  errcheck:
+    name: runner / errcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: errcheck
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--disable-all -E errcheck"
+          tool_name: errcheck
+          level: warning
+
+  improvements:
+    name: runner / improvements
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: maligned
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--disable-all -E maligned"
+          tool_name: maligned
+          level: info
+      - name: prealloc
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--disable-all -E prealloc"
+          tool_name: prealloc
+          level: info
+      - name: gosec
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          golangci_lint_flags: "--disable-all -E gosec"
+          tool_name: gosec
+          level: info
