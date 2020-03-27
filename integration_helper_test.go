@@ -65,7 +65,7 @@ func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 			require.NoError(t, err, "impossible to kill connection", c.Name)
 		}
 	case <-time.After(time.Second * 10):
-		t.Error("timeout for killing connection reached")
+		t.Log("timeout for killing connection reached")
 	}
 }
 
