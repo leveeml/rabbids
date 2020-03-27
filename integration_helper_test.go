@@ -131,3 +131,24 @@ func getChannelHelper(tb testing.TB, resource *dockertest.Resource) *amqp.Channe
 
 	return ch
 }
+
+func checkQueueLength(t *testing.T, client *rabbithole.Client, queuename string, count int, duration time.Duration) {
+	timeout := time.After(duration)
+
+	for {
+		info, err := client.GetQueue("/", queuename)
+		require.NoError(t, err, "error getting the queue info")
+
+		if info.Messages == count {
+			break
+		}
+
+		select {
+		case <-timeout:
+			require.EqualValues(t, count, info.Messages, "expecting all the messages on the queue")
+			break
+		default:
+			time.Sleep(time.Second)
+		}
+	}
+}
