@@ -14,6 +14,7 @@ type Producer struct {
 	Conf        Connection
 	conn        *amqp.Connection
 	ch          *amqp.Channel
+	runCLosed   chan struct{}
 	emit        chan Publishing
 	emitErr     chan PublishingError
 	notifyClose chan *amqp.Error
@@ -28,9 +29,10 @@ func NewProducerFromDSN(dsn string) (*Producer, error) {
 			Sleep:   DefaultSleep,
 			Retries: DefaultRetries,
 		},
-		emit:    make(chan Publishing, 250),
-		emitErr: make(chan PublishingError, 250),
-		log:     NoOPLoggerFN,
+		emit:      make(chan Publishing, 250),
+		emitErr:   make(chan PublishingError, 250),
+		runCLosed: make(chan struct{}),
+		log:       NoOPLoggerFN,
 	}
 	err := p.startConnection()
 
@@ -40,10 +42,11 @@ func NewProducerFromDSN(dsn string) (*Producer, error) {
 // NewProducerFromConfig create a new producer passing
 func NewProducerFromConfig(c Connection) (*Producer, error) {
 	p := &Producer{
-		Conf:    c,
-		emit:    make(chan Publishing, 250),
-		emitErr: make(chan PublishingError, 250),
-		log:     NoOPLoggerFN,
+		Conf:      c,
+		emit:      make(chan Publishing, 250),
+		emitErr:   make(chan PublishingError, 250),
+		runCLosed: make(chan struct{}),
+		log:       NoOPLoggerFN,
 	}
 	err := p.startConnection()
 
@@ -81,12 +84,14 @@ func (p *Producer) Run() {
 		select {
 		case err := <-p.notifyClose:
 			if err == nil {
+				p.runCLosed <- struct{}{}
 				return // graceful shutdown
 			}
 
 			p.handleAMPQClose(err)
 		case pub, ok := <-p.emit:
 			if !ok {
+				p.runCLosed <- struct{}{}
 				return // graceful shutdown
 			}
 
@@ -138,8 +143,11 @@ func (p *Producer) tryToEmitErr(m Publishing, err error) {
 // Close will close all the underline channels and close the connection with rabbitMQ.
 // Any Emit call after calling the Close method will panic.
 func (p *Producer) Close() error {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
+	close(p.emit)
+	<-p.runCLosed
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if p.ch != nil && p.conn != nil && !p.conn.IsClosed() {
 		if err := p.ch.Close(); err != nil {
@@ -151,7 +159,6 @@ func (p *Producer) Close() error {
 		}
 	}
 
-	close(p.emit)
 	close(p.emitErr)
 
 	return nil

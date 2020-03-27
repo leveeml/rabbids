@@ -140,7 +140,7 @@ func checkQueueLength(t *testing.T, client *rabbithole.Client, queuename string,
 		require.NoError(t, err, "error getting the queue info")
 
 		if info.Messages == count {
-			break
+			return
 		}
 
 		select {

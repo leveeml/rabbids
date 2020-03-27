@@ -15,7 +15,7 @@ func TestConnectionErrors(t *testing.T) {
 
 		_, err := rabbids.NewProducerFromDSN("amqp://guest:guest@localhost:80/")
 		require.Error(t, err, "expect an error")
-		require.Contains(t, err.Error(), "dial tcp [::1]:80: connect: connection refuse")
+		require.Contains(t, err.Error(), "connect: connection refuse")
 	})
 	t.Run("passing an invalid host", func(t *testing.T) {
 		t.Parallel()
