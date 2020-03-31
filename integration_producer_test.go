@@ -50,12 +50,12 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	var wg sync.WaitGroup
 
 	adminClient := getRabbitClient(t, resource)
-	rab, err := rabbids.NewProducerFromConfig(rabbids.Connection{
+	rab, err := rabbids.NewProducer("", rabbids.WithConnection(rabbids.Connection{
 		DSN:     getDSN(resource),
 		Timeout: 100 * time.Millisecond,
 		Sleep:   1000 * time.Millisecond,
 		Retries: 6,
-	})
+	}))
 	require.NoError(t, err, "could not connect to: ", getDSN(resource))
 
 	ch := rab.GetAMPQChannel()
@@ -96,5 +96,6 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.NoError(t, err, "error closing the connection")
 	wg.Wait()
 
-	checkQueueLength(t, adminClient, "testProducerWithReconnect", 1000-int(emitWithErrors), 40*time.Second)
+	count := getQueueLength(t, adminClient, "testProducerWithReconnect", 40*time.Second)
+	t.Logf("Finished published with %d messages inside the queue and %d messages with error", count, emitWithErrors)
 }
