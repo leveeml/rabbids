@@ -21,4 +21,4 @@ jobs:
         run: make setup
 
       - name: Tests
-        run: make integration
+        run: make integration-ci
