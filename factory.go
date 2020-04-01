@@ -79,6 +79,20 @@ func (f *Factory) CreateConsumer(name string) (*Consumer, error) {
 	return f.newConsumer(name, cfg)
 }
 
+// CreateConsumer create a new consumer for a specific name using the config provided.
+func (f *Factory) CreateProducer(name string) (*Producer, error) {
+	pConfig, exists := f.config.Producers[name]
+	if !exists {
+		return nil, fmt.Errorf("Producer \"%s\" did not exist", name)
+	}
+
+	cConfig, exists := f.config.Connections[pConfig.Connection]
+	if !exists {
+		return nil, fmt.Errorf("Producer connection \"%s\" did not exist", pConfig.Connection)
+	}
+	return NewProducer("", WithConnection(cConfig), WithFactory(f), WithLogger(f.log))
+}
+
 func (f *Factory) newConsumer(name string, cfg ConsumerConfig) (*Consumer, error) {
 	ch, err := f.getChannel(cfg.Connection)
 	if err != nil {

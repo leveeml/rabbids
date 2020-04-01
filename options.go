@@ -6,6 +6,7 @@ import (
 
 // PublishingOption represents an option you can pass to setup some data inside the Publishing.
 type PublishingOption func(*Publishing) error
+type ProducerOption func(*Producer) error
 
 func WithJSONEncoding(data interface{}) PublishingOption {
 	return func(p *Publishing) error {
@@ -33,6 +34,31 @@ func WithPriority(v int) PublishingOption {
 		}
 
 		p.Priority = uint8(v)
+
+		return nil
+	}
+}
+
+// WithLogger will override the default logger (no Operation Log)
+func WithLogger(log LoggerFN) ProducerOption {
+	return func(p *Producer) error {
+		p.log = log
+
+		return nil
+	}
+}
+
+func WithFactory(f *Factory) ProducerOption {
+	return func(p *Producer) error {
+		p.factory = f
+
+		return nil
+	}
+}
+
+func WithConnection(conf Connection) ProducerOption {
+	return func(p *Producer) error {
+		p.Conf = conf
 
 		return nil
 	}

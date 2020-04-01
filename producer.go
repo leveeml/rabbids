@@ -19,62 +19,33 @@ type Producer struct {
 	emitErr     chan PublishingError
 	notifyClose chan *amqp.Error
 	log         LoggerFN
+	factory     *Factory
+	exDeclared  map[string]struct{}
 }
 
-func NewProducerFromDSN(dsn string) (*Producer, error) {
+func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	p := &Producer{
 		Conf: Connection{
 			DSN:     dsn,
-			Timeout: DefaultTimeout,
-			Sleep:   DefaultSleep,
 			Retries: DefaultRetries,
+			Sleep:   DefaultSleep,
+			Timeout: DefaultTimeout,
 		},
-		emit:    make(chan Publishing, 250),
-		emitErr: make(chan PublishingError, 250),
-		closed:  make(chan struct{}),
-		log:     NoOPLoggerFN,
+		emit:       make(chan Publishing, 250),
+		emitErr:    make(chan PublishingError, 250),
+		closed:     make(chan struct{}),
+		log:        NoOPLoggerFN,
+		exDeclared: make(map[string]struct{}),
+	}
+
+	for _, opt := range opts {
+		if err := opt(p); err != nil {
+			return nil, err
+		}
 	}
 	err := p.startConnection()
 
 	return p, err
-}
-
-// NewProducerFromConfig create a new producer passing
-func NewProducerFromConfig(c Connection) (*Producer, error) {
-	p := &Producer{
-		Conf:    c,
-		emit:    make(chan Publishing, 250),
-		emitErr: make(chan PublishingError, 250),
-		closed:  make(chan struct{}),
-		log:     NoOPLoggerFN,
-	}
-	err := p.startConnection()
-
-	return p, err
-}
-
-// WithLogger will override the default logger (no Operation Log)
-func (p *Producer) WithLogger(log LoggerFN) {
-	p.log = log
-}
-
-func (p *Producer) startConnection() error {
-	p.log("opening a new rabbitmq connection", Fields{})
-	conn, err := openConnection(p.Conf)
-
-	if err != nil {
-		return err
-	}
-
-	p.mutex.Lock()
-
-	p.conn = conn
-	p.ch, err = p.conn.Channel()
-	p.notifyClose = p.conn.NotifyClose(make(chan *amqp.Error))
-
-	p.mutex.Unlock()
-
-	return err
 }
 
 // Run starts rabbids channels for emitting and listening for amqp connections closed
@@ -124,19 +95,12 @@ func (p *Producer) Send(m Publishing) error {
 
 	return retry.Do(func() error {
 		p.mutex.RLock()
+		p.tryToDeclareTopic(m.Exchange)
 		err := p.ch.Publish(m.Exchange, m.Key, false, false, m.Publishing)
 		p.mutex.RUnlock()
 
 		return err
 	}, 10, 10*time.Millisecond)
-}
-
-func (p *Producer) tryToEmitErr(m Publishing, err error) {
-	data := PublishingError{Publishing: m, Err: err}
-	select {
-	case p.emitErr <- data:
-	default:
-	}
 }
 
 // Close will close all the underline channels and close the connection with rabbitMQ.
@@ -179,5 +143,48 @@ func (p *Producer) handleAMPQClose(err error) {
 
 		p.log("ampq reconnection failed", Fields{"error": connErr})
 		time.Sleep(time.Second)
+	}
+}
+
+func (p *Producer) startConnection() error {
+	p.log("opening a new rabbitmq connection", Fields{})
+	conn, err := openConnection(p.Conf)
+
+	if err != nil {
+		return err
+	}
+
+	p.mutex.Lock()
+
+	p.conn = conn
+	p.ch, err = p.conn.Channel()
+	p.notifyClose = p.conn.NotifyClose(make(chan *amqp.Error))
+
+	p.mutex.Unlock()
+
+	return err
+}
+
+func (p *Producer) tryToEmitErr(m Publishing, err error) {
+	data := PublishingError{Publishing: m, Err: err}
+	select {
+	case p.emitErr <- data:
+	default:
+	}
+}
+
+func (p *Producer) tryToDeclareTopic(ex string) {
+	if p.factory == nil || p.factory.config == nil || ex == "" {
+		return
+	}
+
+	if _, ok := p.exDeclared[ex]; !ok {
+		err := p.factory.declareExchange(p.ch, ex)
+		if err != nil {
+			p.log("failed declaring a exchange", Fields{"err": err, "ex": ex})
+			return
+		}
+
+		p.exDeclared[ex] = struct{}{}
 	}
 }

@@ -102,6 +102,10 @@ func setDSN(resource *dockertest.Resource, conn rabbids.Connection) rabbids.Conn
 }
 
 func logFNHelper(tb testing.TB) rabbids.LoggerFN {
+	if testing.Short() {
+		return rabbids.NoOPLoggerFN
+	}
+
 	return func(message string, fields rabbids.Fields) {
 		pattern := message + " fields: "
 		values := []interface{}{}
@@ -112,6 +116,7 @@ func logFNHelper(tb testing.TB) rabbids.LoggerFN {
 			values = append(values, k, v)
 		}
 
+		tb.Helper()
 		tb.Logf(pattern, values...)
 	}
 }
@@ -143,6 +148,7 @@ func getQueueLength(t *testing.T, client *rabbithole.Client, queuename string, d
 		info, err := client.GetQueue("/", queuename)
 		require.NoError(t, err, "error getting the queue info")
 
+		lastCount = info.Messages
 		if info.Messages == lastCount {
 			equalCounts++
 		} else {

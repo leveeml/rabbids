@@ -30,6 +30,10 @@ type Config struct {
 	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters"`
 	// Consumers describes configuration list for consumers.
 	Consumers map[string]ConsumerConfig `mapstructure:"consumers"`
+	// Producers describes the configuration list for producers.
+	// In most cases you only need one producer and will need other producers
+	// if you has connection rules (virtual host or permissions by user)
+	Producers map[string]ProducerConfig `mapstructure:"producers"`
 	// Registered Message handlers used by consumers
 	Handlers map[string]MessageHandler
 }
@@ -87,6 +91,12 @@ type Options struct {
 	NoLocal    bool       `mapstructure:"no_local"`
 	AutoAck    bool       `mapstructure:"auto_ack"`
 	Args       amqp.Table `mapstructure:"args"`
+}
+
+type ProducerConfig struct {
+	Connection string        `mapstructure:"connection"`
+	Sleep      time.Duration `mapstructure:"sleep"`
+	Retries    int           `mapstructure:"retries"`
 }
 
 func setConfigDefaults(config *Config) {
