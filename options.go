@@ -6,8 +6,13 @@ import (
 
 // PublishingOption represents an option you can pass to setup some data inside the Publishing.
 type PublishingOption func(*Publishing) error
+
+// ProducerOption represents an option function to add some functionality or change the producer
+// state on creation time.
 type ProducerOption func(*Producer) error
 
+// WithJSONEncoding marshal the data type and add the result to the Publishing
+// with all the necessary headers included.
 func WithJSONEncoding(data interface{}) PublishingOption {
 	return func(p *Publishing) error {
 		b, err := json.Marshal(data)
@@ -23,6 +28,7 @@ func WithJSONEncoding(data interface{}) PublishingOption {
 	}
 }
 
+// WithPriority change the priority of the Publishing message.
 func WithPriority(v int) PublishingOption {
 	return func(p *Publishing) error {
 		if v < 0 {
@@ -39,7 +45,7 @@ func WithPriority(v int) PublishingOption {
 	}
 }
 
-// WithLogger will override the default logger (no Operation Log)
+// WithLogger will override the default logger (no Operation Log).
 func WithLogger(log LoggerFN) ProducerOption {
 	return func(p *Producer) error {
 		p.log = log
@@ -48,6 +54,7 @@ func WithLogger(log LoggerFN) ProducerOption {
 	}
 }
 
+// WithFactory will add the factory used to get and declare the exchanges used.
 func WithFactory(f *Factory) ProducerOption {
 	return func(p *Producer) error {
 		p.factory = f
@@ -56,6 +63,7 @@ func WithFactory(f *Factory) ProducerOption {
 	}
 }
 
+// WithConnection add the connection config to set up the Connection instead the default values.
 func WithConnection(conf Connection) ProducerOption {
 	return func(p *Producer) error {
 		p.Conf = conf
