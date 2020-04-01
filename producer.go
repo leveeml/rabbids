@@ -43,6 +43,7 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 			return nil, err
 		}
 	}
+
 	err := p.startConnection()
 
 	return p, err

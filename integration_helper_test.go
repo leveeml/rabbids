@@ -41,31 +41,30 @@ func getRabbitClient(t *testing.T, resource *dockertest.Resource) *rabbithole.Cl
 func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 	t.Helper()
 
-	conns := make(chan []rabbithole.ConnectionInfo)
+	timeout := time.After(10 * time.Second)
 
-	go func() {
-		for {
+	for {
+		select {
+		default:
 			connections, err := client.ListConnections()
 			require.NoError(t, err, "failed to get the connections")
 
 			if len(connections) >= 1 {
-				conns <- connections
-				break
+				for _, c := range connections {
+					t.Logf("killing connection: (%s) sendPending: %d", c.Name, c.SendPending)
+					_, err := client.CloseConnection(c.Name)
+					require.NoError(t, err, "impossible to kill connection", c.Name)
+				}
+
+				return
 			}
 
 			time.Sleep(time.Second)
-		}
-	}()
+		case <-timeout:
+			t.Log("timeout for killing connection reached")
 
-	select {
-	case connections := <-conns:
-		for _, c := range connections {
-			t.Logf("killing connection: (%s) sendPending: %d", c.Name, c.SendPending)
-			_, err := client.CloseConnection(c.Name)
-			require.NoError(t, err, "impossible to kill connection", c.Name)
+			return
 		}
-	case <-time.After(time.Second * 10):
-		t.Log("timeout for killing connection reached")
 	}
 }
 

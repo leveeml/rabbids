@@ -90,6 +90,7 @@ func (f *Factory) CreateProducer(name string) (*Producer, error) {
 	if !exists {
 		return nil, fmt.Errorf("Producer connection \"%s\" did not exist", pConfig.Connection)
 	}
+
 	return NewProducer("", WithConnection(cConfig), WithFactory(f), WithLogger(f.log))
 }
 
