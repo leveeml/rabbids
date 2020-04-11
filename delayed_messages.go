@@ -22,6 +22,7 @@ const (
 type delayDelivery struct {
 }
 
+// Build create all the layers of exchanges and queues on rabbitMQ.
 func (d *delayDelivery) Build(ch *amqp.Channel) error {
 	var bindingKey = "1.#"
 
@@ -35,7 +36,7 @@ func (d *delayDelivery) Build(ch *amqp.Channel) error {
 
 		err := ch.ExchangeDeclare(currentLevel, amqp.ExchangeTopic, true, false, false, false, amqp.Table{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to declare exchange \"%s\": %v", currentLevel, err)
 		}
 
 		_, err = ch.QueueDeclare(currentLevel, true, false, false, false, amqp.Table{
@@ -44,12 +45,12 @@ func (d *delayDelivery) Build(ch *amqp.Channel) error {
 			"x-dead-letter-exchange": nextLevel,
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to declare queue \"%s\": %v", currentLevel, err)
 		}
 
 		err = ch.QueueBind(currentLevel, bindingKey, currentLevel, false, amqp.Table{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to bind queue \"%s\" to exchange \"%s\": %v", currentLevel, currentLevel, err)
 		}
 
 		bindingKey = "*." + bindingKey
@@ -63,7 +64,7 @@ func (d *delayDelivery) Build(ch *amqp.Channel) error {
 
 		err := ch.ExchangeBind(nextLevel, bindingKey, currentLevel, false, amqp.Table{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to exchange bind %s->%s: %v", currentLevel, nextLevel, err)
 		}
 
 		bindingKey = "*." + bindingKey
@@ -71,7 +72,7 @@ func (d *delayDelivery) Build(ch *amqp.Channel) error {
 
 	err := ch.ExchangeDeclare(DelayDeliveryExchange, amqp.ExchangeTopic, true, false, false, false, amqp.Table{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to declare exchange %s: %v", DelayDeliveryExchange, err)
 	}
 
 	err = ch.ExchangeBind(DelayDeliveryExchange, bindingKey, d.levelName(0), false, amqp.Table{})
@@ -86,14 +87,16 @@ func (d *delayDelivery) CalculateRoutingKey(delay time.Duration, address string)
 		delay = MaxDelay
 	}
 
-	sec := uint(delay.Seconds())
 	var buf bytes.Buffer
+
+	sec := uint(delay.Seconds())
 	firstLevel := 0
 
 	for level := maxLevel; level >= 0; level-- {
 		if firstLevel == 0 && sec&(1<<uint(level)) != 0 {
 			firstLevel = level
 		}
+
 		if sec&(1<<uint(level)) != 0 {
 			buf.WriteString("1.")
 		} else {
