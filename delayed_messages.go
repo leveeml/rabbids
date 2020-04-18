@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -20,10 +21,26 @@ const (
 // delayDelivery is based on the setup of delay messages created by the NServiceBus project.
 // For more information go to the docs on https://docs.particular.net/transports/rabbitmq/delayed-delivery.
 type delayDelivery struct {
+	delayDeclaredOnce sync.Once
 }
 
-// Build create all the layers of exchanges and queues on rabbitMQ.
-func (d *delayDelivery) Build(ch *amqp.Channel) error {
+// Declare create all the layers of exchanges and queues on rabbitMQ
+// and declare the bind between the last rabbids.delay-delivery ex and the queue.
+func (d *delayDelivery) Declare(ch *amqp.Channel, queue string) error {
+	var declaredErr error
+
+	d.delayDeclaredOnce.Do(func() {
+		declaredErr = d.build(ch)
+	})
+
+	if declaredErr != nil {
+		return declaredErr
+	}
+
+	return ch.QueueBind(queue, fmt.Sprintf("#.%s", queue), DelayDeliveryExchange, true, amqp.Table{})
+}
+
+func (d *delayDelivery) build(ch *amqp.Channel) error {
 	var bindingKey = "1.#"
 
 	for level := maxLevel; level >= 0; level-- {
@@ -109,6 +126,6 @@ func (d *delayDelivery) CalculateRoutingKey(delay time.Duration, address string)
 	return buf.String(), d.levelName(firstLevel)
 }
 
-func (d delayDelivery) levelName(level int) string {
+func (d *delayDelivery) levelName(level int) string {
 	return fmt.Sprintf("rabbids.delay-level-%d", level)
 }
