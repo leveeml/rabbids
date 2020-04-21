@@ -13,6 +13,7 @@ require (
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/google/go-cmp v0.2.0 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/ivpusic/grpool v1.0.0
 	github.com/kr/pretty v0.1.0 // indirect

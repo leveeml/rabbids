@@ -12,8 +12,10 @@ test: ## Run all the tests
 	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -timeout=1m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -all
 
 integration: ## Run all the integration tests
-	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -tags integration -timeout=5m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -all
+	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -integration -timeout=5m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -top -all -dump
 
+integration-ci: ## Run all the integration tests without any log and test dump
+	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -short -integration -timeout=5m -cover -json $(SOURCE_FILES) | $$(go env GOPATH)/bin/tparse -top -smallscreen -all
 
 bench: ## Run the benchmark tests
 	go test -bench=. $(TEST_PATTERN)
@@ -26,9 +28,6 @@ fmt: ## gofmt and goimports all go files
 
 lint: ## Run all the linters
 	golangci-lint run
-
-ci: lint ## Run all the tests and code checks
-	go test $(TEST_OPTIONS) -covermode=atomic -coverprofile=coverage.txt -timeout=1m -cover -json $(SOURCE_FILES) | tparse -all -smallscreen
 
 # Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help:

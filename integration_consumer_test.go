@@ -1,23 +1,21 @@
-// +build integration
-
 package rabbids_test
 
 import (
-	"fmt"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/empregoligado/rabbids"
-	rabbithole "github.com/michaelklishin/rabbit-hole"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ory-am/dockertest.v3"
 )
 
-func TestIntegrationSuite(t *testing.T) {
+func TestIntegrationConsumerSuite(t *testing.T) {
+	integrationTest(t)
+	t.Parallel()
+
 	tests := []struct {
 		scenario string
 		method   func(*testing.T, *dockertest.Resource)
@@ -78,26 +76,32 @@ func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
 	config := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
 	config.Connections["default"] = setDSN(resource, config.Connections["default"])
 
-	handler := &mockHandler{count: 0, ack: true}
+	handler := &mockHandler{count: 0, ack: true, tb: t}
 	config.RegisterHandler("messaging_consumer", handler)
 	factory, err := rabbids.NewFactory(config, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the factory")
 	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Manager")
+
 	defer manager.Stop()
+
 	ch := getChannelHelper(t, resource)
+
 	for i := 0; i < 5; i++ {
 		err = ch.Publish("event_bus", "service.whatssapp.send", false, false, amqp.Publishing{
 			Body: []byte(`{"fooo": "bazzz"}`),
 		})
 		require.NoError(t, err, "error publishing to rabbitMQ")
 	}
+
 	<-time.After(400 * time.Millisecond)
 	require.EqualValues(t, 5, handler.messagesProcessed())
+
 	for _, cfg := range config.Consumers {
 		_, err := ch.QueueDelete(cfg.Queue.Name, false, false, false)
 		require.NoError(t, err)
 	}
+
 	for name := range config.Exchanges {
 		err := ch.ExchangeDelete(name, false, false)
 		require.NoError(t, err)
@@ -111,7 +115,8 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	received := make(chan string, 10)
 	handler := rabbids.MessageHandlerFunc(func(m rabbids.Message) {
 		received <- string(m.Body)
-		m.Ack(false)
+		err := m.Ack(false)
+		require.NoError(t, err, "failed to ack the message")
 	})
 	config.RegisterHandler("send_consumer", handler)
 	config.RegisterHandler("response_consumer", handler)
@@ -119,6 +124,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.NoError(t, err, "failed to create the rabbids factory")
 	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Manager")
+
 	defer manager.Stop()
 
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 0, 2)
@@ -127,7 +133,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.Len(t, received, 5, "consumer should be processed 5 messages before close connections")
 
 	// get the http client and force to close all the connections
-	closeRabbitMQConnections(t, resource)
+	closeRabbitMQConnections(t, getRabbitClient(t, resource))
 
 	// send new messages
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 5, 6)
@@ -137,83 +143,26 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.Len(t, received, 9, "consumer should be processed 9 messages")
 }
 
-func sendMessages(t *testing.T, resource *dockertest.Resource, ex, key string, start, count int) {
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://localhost:%s", resource.GetPort("5672/tcp")))
-	require.NoError(t, err, "failed to open a new connection for tests")
-	ch, err := conn.Channel()
-	require.NoError(t, err, "failed to open a channel for tests")
-
-	for i := start; i <= count; i++ {
-		err := ch.Publish(ex, key, false, false, amqp.Publishing{
-			Body: []byte(fmt.Sprintf("%d ", i)),
-		})
-		require.NoError(t, err, "error publishing to rabbitMQ")
-	}
-}
-
-func getConfigHelper(t *testing.T, configFile string) *rabbids.Config {
-	config, err := rabbids.ConfigFromFile(filepath.Join("testdata", configFile))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return config
-}
-
-func setDSN(resource *dockertest.Resource, conn rabbids.Connection) rabbids.Connection {
-	conn.DSN = fmt.Sprintf("amqp://localhost:%s", resource.GetPort("5672/tcp"))
-	return conn
-}
-
-func closeRabbitMQConnections(t *testing.T, resource *dockertest.Resource) {
-	client, err := rabbithole.NewClient(
-		fmt.Sprintf("http://localhost:%s", resource.GetPort("15672/tcp")),
-		"guest", "guest")
-	require.NoError(t, err, "Fail to create the rabbithole client")
-	conns, err := client.ListConnections()
-	require.NoError(t, err, "fail to get all the connections")
-	t.Logf("Found %d open connections", len(conns))
-	for _, conn := range conns {
-		_, err = client.CloseConnection(conn.Name)
-		require.NoError(t, err, "fail to close the connection ", conn.Name)
-	}
-}
-
-func logFNHelper(tb testing.TB) rabbids.LoggerFN {
-	return func(message string, fields rabbids.Fields) {
-		pattern := message + " fields: "
-		values := []interface{}{}
-		for k, v := range fields {
-			pattern += "%s=%v "
-			values = append(values, k, v)
-		}
-		tb.Logf(pattern, values...)
-	}
-}
-
-func getChannelHelper(tb testing.TB, resource *dockertest.Resource) *amqp.Channel {
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://localhost:%s", resource.GetPort("5672/tcp")))
-	if err != nil {
-		tb.Fatal("Failed to connect with rabbitMQ: ", err)
-	}
-	ch, err := conn.Channel()
-	if err != nil {
-		tb.Fatal("Failed to create a new channel: ", err)
-	}
-	return ch
-}
-
 type mockHandler struct {
 	count int64
 	ack   bool
+	tb    testing.TB
 }
 
 func (m *mockHandler) Handle(msg rabbids.Message) {
 	atomic.AddInt64(&m.count, 1)
+
 	if m.ack {
-		msg.Ack(false)
+		if err := msg.Ack(false); err != nil {
+			m.tb.Errorf("Failed to ack the message. err: %v, tag: %d", err, msg.DeliveryTag)
+		}
+
 		return
 	}
-	msg.Nack(false, false)
+
+	if err := msg.Nack(false, false); err != nil {
+		m.tb.Errorf("Failed to nack the message. err: %v, tag: %d", err, msg.DeliveryTag)
+	}
 }
 
 func (m *mockHandler) Close() {}
