@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/empregoligado/rabbids/serialization"
 	retry "github.com/rafaeljesus/retry-go"
 	"github.com/streadway/amqp"
 )
@@ -20,6 +21,7 @@ type Producer struct {
 	notifyClose chan *amqp.Error
 	log         LoggerFN
 	factory     *Factory
+	serializer  Serializer
 	exDeclared  map[string]struct{}
 }
 
@@ -35,6 +37,7 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 		emitErr:    make(chan PublishingError, 250),
 		closed:     make(chan struct{}),
 		log:        NoOPLoggerFN,
+		serializer: &serialization.JSON{},
 		exDeclared: make(map[string]struct{}),
 	}
 
@@ -86,13 +89,19 @@ func (p *Producer) EmitErr() <-chan PublishingError { return p.emitErr }
 
 // Send a message to rabbitMQ.
 // In case of connection errors, the send will block and retry until the reconnection is done.
-// It returns an error if the Publishing options returned an error OR the connection error persisted after the retries.
+// It returns an error if the Serializer returned an error OR the connection error persisted after the retries.
 func (p *Producer) Send(m Publishing) error {
 	for _, op := range m.options {
-		if err := op(&m); err != nil {
-			return err
-		}
+		op(&m)
 	}
+
+	b, err := p.serializer.Marshal(m.Data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal: %w", err)
+	}
+
+	m.Body = b
+	m.ContentType = p.serializer.Name()
 
 	return retry.Do(func() error {
 		p.mutex.RLock()

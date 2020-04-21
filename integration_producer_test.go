@@ -87,7 +87,7 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 			closeRabbitMQConnections(t, adminClient)
 		}
 		rab.Emit() <- rabbids.NewPublishing("", "testProducerWithReconnect",
-			rabbids.WithJSONEncoding(map[string]int{"test": i}),
+			map[string]int{"test": i},
 		)
 		time.Sleep(time.Millisecond)
 	}
