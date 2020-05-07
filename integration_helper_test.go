@@ -147,12 +147,13 @@ func getQueueLength(t *testing.T, client *rabbithole.Client, queuename string, d
 		info, err := client.GetQueue("/", queuename)
 		require.NoError(t, err, "error getting the queue info")
 
-		lastCount = info.Messages
 		if info.Messages == lastCount {
 			equalCounts++
 		} else {
 			equalCounts = 0
 		}
+
+		lastCount = info.Messages
 
 		if equalCounts >= 3 {
 			return info.Messages
