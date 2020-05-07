@@ -1,6 +1,8 @@
 package rabbids
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
@@ -20,6 +22,9 @@ type Publishing struct {
 	Key string
 	// Data to be encoded inside the message
 	Data interface{}
+	// Delay is the duration to wait until the message is delivered to the queue.
+	// The max delay period is 268,435,455 seconds, or about 8.5 years.
+	Delay time.Duration
 
 	options []PublishingOption
 	amqp.Publishing
@@ -43,6 +48,24 @@ func NewPublishing(exchange, key string, data interface{}, options ...Publishing
 			MessageId: id.String(),
 			Priority:  0,
 			Headers:   amqp.Table{},
+		},
+		options: options,
+	}
+}
+
+// SendWithDelay send a message to arrive the queue only after the time is passed.
+// The max delay period is 268,435,455 seconds, or about 8.5 years.
+func NewDelayedPublishing(queue string, delay time.Duration, data interface{}, options ...PublishingOption) Publishing {
+	key, ex := calculateRoutingKey(delay, queue)
+
+	return Publishing{
+		Exchange: ex,
+		Key:      key,
+		Data:     data,
+		Delay:    delay,
+		Publishing: amqp.Publishing{
+			Priority: 0,
+			Headers:  amqp.Table{},
 		},
 		options: options,
 	}

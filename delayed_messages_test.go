@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-func Test_delayDelivery_CalculateRoutingKey(t *testing.T) {
+func Test_calculateRoutingKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		delay     time.Duration
@@ -52,13 +54,41 @@ func Test_delayDelivery_CalculateRoutingKey(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			d := &delayDelivery{}
-			topic, ex := d.CalculateRoutingKey(tt.delay, tt.address)
+			topic, ex := calculateRoutingKey(tt.delay, tt.address)
 			if topic != tt.wantTopic {
 				t.Errorf("returned wrong topic = %v, want %v", topic, tt.wantTopic)
 			}
 			if ex != tt.wantEx {
 				t.Errorf("returned wrong exchange = %v, want %v", ex, tt.wantEx)
+			}
+		})
+	}
+}
+
+func Test_getQueueFromRoutingKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  string
+		want string
+	}{
+		{
+			name: "single word",
+			key:  "0.0.0.0.0.0.0.0.1.1.1.1.1.1.0.1.0.0.1.0.0.0.0.0.0.0.0.0.test",
+			want: "test",
+		},
+		{
+			name: "2 words separated by dot",
+			key:  "0.0.0.0.0.0.0.0.1.1.1.1.1.1.0.1.0.0.1.0.0.0.0.0.0.0.0.0.test.foo",
+			want: "test.foo",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getQueueFromRoutingKey(tt.key); got != tt.want {
+				t.Errorf("getQueueFromRoutingKey() = %v, want %v", got, tt.want)
 			}
 		})
 	}

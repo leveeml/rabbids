@@ -26,8 +26,10 @@ type delayDelivery struct {
 
 // Declare create all the layers of exchanges and queues on rabbitMQ
 // and declare the bind between the last rabbids.delay-delivery ex and the queue.
-func (d *delayDelivery) Declare(ch *amqp.Channel, queue string) error {
+func (d *delayDelivery) Declare(ch *amqp.Channel, key string) error {
 	var declaredErr error
+
+	queue := getQueueFromRoutingKey(key)
 
 	d.delayDeclaredOnce.Do(func() {
 		declaredErr = d.build(ch)
@@ -37,15 +39,15 @@ func (d *delayDelivery) Declare(ch *amqp.Channel, queue string) error {
 		return declaredErr
 	}
 
-	return ch.QueueBind(queue, fmt.Sprintf("#.%s", queue), DelayDeliveryExchange, true, amqp.Table{})
+	return ch.QueueBind(queue, fmt.Sprintf("#.%s", queue), DelayDeliveryExchange, false, amqp.Table{})
 }
 
 func (d *delayDelivery) build(ch *amqp.Channel) error {
 	var bindingKey = "1.#"
 
 	for level := maxLevel; level >= 0; level-- {
-		currentLevel := d.levelName(level)
-		nextLevel := d.levelName(level - 1)
+		currentLevel := delayedLevelName(level)
+		nextLevel := delayedLevelName(level - 1)
 
 		if level == 0 {
 			nextLevel = DelayDeliveryExchange
@@ -76,12 +78,16 @@ func (d *delayDelivery) build(ch *amqp.Channel) error {
 	bindingKey = "0.#"
 
 	for level := maxLevel; level >= 0; level-- {
-		currentLevel := d.levelName(level)
-		nextLevel := d.levelName(level - 1)
+		currentLevel := delayedLevelName(level)
+		nextLevel := delayedLevelName(level - 1)
+
+		if level == 0 {
+			break
+		}
 
 		err := ch.ExchangeBind(nextLevel, bindingKey, currentLevel, false, amqp.Table{})
 		if err != nil {
-			return fmt.Errorf("failed to exchange bind %s->%s: %v", currentLevel, nextLevel, err)
+			return fmt.Errorf("failed to exchange the bind %s->%s: %v", currentLevel, nextLevel, err)
 		}
 
 		bindingKey = "*." + bindingKey
@@ -92,14 +98,14 @@ func (d *delayDelivery) build(ch *amqp.Channel) error {
 		return fmt.Errorf("failed to declare exchange %s: %v", DelayDeliveryExchange, err)
 	}
 
-	err = ch.ExchangeBind(DelayDeliveryExchange, bindingKey, d.levelName(0), false, amqp.Table{})
+	err = ch.ExchangeBind(DelayDeliveryExchange, bindingKey, delayedLevelName(0), false, amqp.Table{})
 
 	return err
 }
 
-// CalculateRoutingKey return the routingkey and the first applicable exchange
+// calculateRoutingKey return the routingkey and the first applicable exchange
 // to avoid unnecessary traversal through the delay infrastructure.
-func (d *delayDelivery) CalculateRoutingKey(delay time.Duration, address string) (string, string) {
+func calculateRoutingKey(delay time.Duration, queue string) (string, string) {
 	if delay > MaxDelay {
 		delay = MaxDelay
 	}
@@ -121,11 +127,17 @@ func (d *delayDelivery) CalculateRoutingKey(delay time.Duration, address string)
 		}
 	}
 
-	buf.WriteString(address)
+	buf.WriteString(queue)
 
-	return buf.String(), d.levelName(firstLevel)
+	return buf.String(), delayedLevelName(firstLevel)
 }
 
-func (d *delayDelivery) levelName(level int) string {
+// getQueueFromKey return the original queue name
+// used to generate the delay routing key.
+func getQueueFromRoutingKey(key string) string {
+	return key[maxNumberOfBitsToUse*2:]
+}
+
+func delayedLevelName(level int) string {
 	return fmt.Sprintf("rabbids.delay-level-%d", level)
 }
