@@ -18,7 +18,8 @@ const (
 	DefaultRetries = 5
 )
 
-// Config describes all available options for amqp connection creation.
+// Config describes all available options to declare all the components used by
+// rabbids Consumers and Producers.
 type Config struct {
 	// Connections describe the connections used by consumers.
 	Connections map[string]Connection `mapstructure:"connections"`
@@ -81,7 +82,8 @@ type Binding struct {
 	Options     Options  `mapstructure:"options"`
 }
 
-// Options describes optionals configuration for consumer, queue, bindings and exchanges.
+// Options describes optionals configuration
+// for consumer, queue, bindings and exchanges declaration.
 type Options struct {
 	Durable    bool       `mapstructure:"durable"`
 	Internal   bool       `mapstructure:"internal"`
@@ -93,6 +95,9 @@ type Options struct {
 	Args       amqp.Table `mapstructure:"args"`
 }
 
+// ProducerConfig set the Connection name used for this producer
+// The only required param is the Connection string, the rest of the params
+// will be set by default values.
 type ProducerConfig struct {
 	Connection string        `mapstructure:"connection"`
 	Sleep      time.Duration `mapstructure:"sleep"`
@@ -132,14 +137,24 @@ func setConfigDefaults(config *Config) {
 	}
 }
 
-func (c *Config) RegisterHandler(name string, h MessageHandler) {
+// RegisterHandler is used to set the MessageHandler used by one Consumer.
+// The consumerName MUST be equal as the name used by the Consumer
+// (the key inside the map of consumers)
+func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 	if c.Handlers == nil {
 		c.Handlers = map[string]MessageHandler{}
 	}
 
-	c.Handlers[name] = h
+	c.Handlers[consumerName] = h
 }
 
+// ConfigFromFile read a YAML file and convert it into a Config struct
+// with all the configuration to build the Consumers and producers.
+// Also, it Is possible to use environment variables values inside the YAML file.
+// The syntax is like the syntax used inside the docker-compose file.
+// To use a required variable just use like this: ${ENV_NAME}
+// and to put an default value you can use: ${ENV_NAME:=some-value} inside any value.
+// If a required variable didn't exist, an error will be returned
 func ConfigFromFile(filename string) (*Config, error) {
 	input := map[string]interface{}{}
 	output := &Config{}

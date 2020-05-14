@@ -14,7 +14,7 @@ type Serializer interface {
 	Name() string
 }
 
-// Publishing have the fields for sending a message.
+// Publishing have the fields for sending a message to rabbitMQ
 type Publishing struct {
 	// Exchange name
 	Exchange string
@@ -30,11 +30,16 @@ type Publishing struct {
 	amqp.Publishing
 }
 
+// PublishingError is returned by the async error reporting.
+// When an async publishing message is sent and an error happens
+// the Publishing and the error will be sent to the EmitErr channel.
+// To get this channel, call the EmitErr method inside the producer.
 type PublishingError struct {
 	Publishing
 	Err error
 }
 
+// NewPublishing create a message to be sent by some consumer
 func NewPublishing(exchange, key string, data interface{}, options ...PublishingOption) Publishing {
 	id, err := uuid.NewRandom()
 	if err != nil {
