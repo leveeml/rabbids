@@ -15,7 +15,12 @@ type Supervisor struct {
 }
 
 // NewSupervisor init a new consumer supervisor to make sure all the consumers are alive.
-func NewSupervisor(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*Supervisor, error) {
+func NewSupervisor(config *Config, intervalChecks time.Duration, log LoggerFN) (*Supervisor, error) {
+	factory, err := NewFactory(config, log)
+	if err != nil {
+		return nil, err
+	}
+
 	m := &Supervisor{
 		checkAliveness: intervalChecks,
 		factory:        factory,

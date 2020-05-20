@@ -78,9 +78,7 @@ func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
 
 	handler := &mockHandler{count: 0, ack: true, tb: t}
 	config.RegisterHandler("messaging_consumer", handler)
-	factory, err := rabbids.NewFactory(config, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the factory")
-	supervisor, err := rabbids.NewSupervisor(factory, 10*time.Millisecond, logFNHelper(t))
+	supervisor, err := rabbids.NewSupervisor(config, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Supervisor")
 
 	defer supervisor.Stop()
@@ -120,9 +118,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	})
 	config.RegisterHandler("send_consumer", handler)
 	config.RegisterHandler("response_consumer", handler)
-	factory, err := rabbids.NewFactory(config, logFNHelper(t))
-	require.NoError(t, err, "failed to create the rabbids factory")
-	supervisor, err := rabbids.NewSupervisor(factory, 10*time.Millisecond, logFNHelper(t))
+	supervisor, err := rabbids.NewSupervisor(config, 10*time.Millisecond, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the Supervisor")
 
 	defer supervisor.Stop()

@@ -158,7 +158,6 @@ func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 func ConfigFromFile(filename string) (*Config, error) {
 	input := map[string]interface{}{}
 	output := &Config{}
-
 	in, err := envsubst.ReadFileRestricted(filename, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the file: %w", err)
