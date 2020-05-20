@@ -10,6 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Producer is an high level rabbitMQ producer instance
 type Producer struct {
 	mutex         sync.RWMutex
 	Conf          Connection
@@ -26,6 +27,16 @@ type Producer struct {
 	delayDelivery *delayDelivery
 }
 
+// NewProcucer create a new high level rabbitMQ producer instance
+//
+// dsn is a string in the AMQP URI format
+// the ProducerOptions can be:
+//   rabbids.WithLogger     - to set a logger instance
+//   rabbids.WithFactory    - to use one instance of a factory.
+//                            when added the factory is used to declare the topics
+//                            in the first time the topic is used.
+//   rabbids.WithSerializer - used to set a specific serializer
+//                            the default is the a JSON serializer
 func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	p := &Producer{
 		Conf: Connection{
@@ -50,13 +61,17 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	}
 
 	err := p.startConnection()
+	if err != nil {
+		return nil, err
+	}
 
-	return p, err
+	go p.loop()
+
+	return p, nil
 }
 
-// Run starts rabbids channels for emitting and listening for amqp connections closed
-// returns when the producer is shutting down.
-func (p *Producer) Run() {
+// the internal loop to handle signals from rabbitMQ and the async api.
+func (p *Producer) loop() {
 	for {
 		select {
 		case err := <-p.notifyClose:

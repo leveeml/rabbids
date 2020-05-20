@@ -14,7 +14,7 @@ type Manager struct {
 	log            LoggerFN
 }
 
-// NewManager init a new manager and wait for operations.
+// NewManager init a new consumer manager to .
 func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*Manager, error) {
 	m := &Manager{
 		checkAliveness: intervalChecks,
@@ -40,7 +40,7 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 	return m, nil
 }
 
-// work will execute all te operations received from the internal operation channel
+// checks will execute all the operations received from the internal operation channel
 func (m *Manager) checks() {
 	ticker := time.NewTicker(m.checkAliveness)
 

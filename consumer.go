@@ -10,6 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Consumer is a high level rabbitMQ consumer
 type Consumer struct {
 	handler    MessageHandler
 	number     int64
@@ -22,7 +23,7 @@ type Consumer struct {
 	log        LoggerFN
 }
 
-// Run start a goroutine to consume messages and pass to one runner.
+// Run start a goroutine to consume messages from a queue and pass to one runner.
 func (c *Consumer) Run() {
 	c.t.Go(func() error {
 		defer func() {

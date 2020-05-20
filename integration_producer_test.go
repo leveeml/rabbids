@@ -66,16 +66,9 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	_, err = ch.QueueDeclare("testProducerWithReconnect", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)
 
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-
-		rab.Run()
-	}()
-
 	var emitWithErrors int64
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -117,8 +110,6 @@ func testPublishWithDelay(t *testing.T, resource *dockertest.Resource) {
 
 	_, err = ch.QueueDeclare("testPublishWithDelay", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)
-
-	go rab.Run()
 
 	err = rab.Send(rabbids.NewDelayedPublishing(
 		"testPublishWithDelay",
