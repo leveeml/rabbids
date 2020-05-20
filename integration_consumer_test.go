@@ -80,10 +80,10 @@ func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
 	config.RegisterHandler("messaging_consumer", handler)
 	factory, err := rabbids.NewFactory(config, logFNHelper(t))
 	require.NoError(t, err, "Failed to create the factory")
-	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the Manager")
+	supervisor, err := rabbids.NewSupervisor(factory, 10*time.Millisecond, logFNHelper(t))
+	require.NoError(t, err, "Failed to create the Supervisor")
 
-	defer manager.Stop()
+	defer supervisor.Stop()
 
 	ch := getChannelHelper(t, resource)
 
@@ -122,10 +122,10 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	config.RegisterHandler("response_consumer", handler)
 	factory, err := rabbids.NewFactory(config, logFNHelper(t))
 	require.NoError(t, err, "failed to create the rabbids factory")
-	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the Manager")
+	supervisor, err := rabbids.NewSupervisor(factory, 10*time.Millisecond, logFNHelper(t))
+	require.NoError(t, err, "Failed to create the Supervisor")
 
-	defer manager.Stop()
+	defer supervisor.Stop()
 
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 0, 2)
 	sendMessages(t, resource, "event_bus", "service.whatssapp.response", 3, 4)

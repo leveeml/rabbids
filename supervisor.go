@@ -4,9 +4,9 @@ import (
 	"time"
 )
 
-// Manager is the block responsible for creating all the consumers.
+// Supervisor is the block responsible for creating all the consumers.
 // Keeping track of the current state of consumers and stop/restart consumers when needed.
-type Manager struct {
+type Supervisor struct {
 	checkAliveness time.Duration
 	factory        *Factory
 	consumers      map[string]*Consumer
@@ -14,9 +14,9 @@ type Manager struct {
 	log            LoggerFN
 }
 
-// NewManager init a new consumer manager to .
-func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*Manager, error) {
-	m := &Manager{
+// NewSupervisor init a new consumer supervisor to make sure all the consumers are alive.
+func NewSupervisor(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*Supervisor, error) {
+	m := &Supervisor{
 		checkAliveness: intervalChecks,
 		factory:        factory,
 		log:            log,
@@ -34,14 +34,14 @@ func NewManager(factory *Factory, intervalChecks time.Duration, log LoggerFN) (*
 		m.consumers[c.Name()] = c
 	}
 
-	//we use a Manager as a program structure and didn`t need to close this goroutines
+	//we use a supervisor as a program structure and didn`t need to close this goroutines
 	go m.checks()
 
 	return m, nil
 }
 
 // checks will execute all the operations received from the internal operation channel
-func (m *Manager) checks() {
+func (m *Supervisor) checks() {
 	ticker := time.NewTicker(m.checkAliveness)
 
 	for {
@@ -59,12 +59,12 @@ func (m *Manager) checks() {
 }
 
 // Stop all the consumers
-func (m *Manager) Stop() {
+func (m *Supervisor) Stop() {
 	m.close <- struct{}{}
 	<-m.close
 }
 
-func (m *Manager) restartDeadConsumers() {
+func (m *Supervisor) restartDeadConsumers() {
 	for name, c := range m.consumers {
 		if !c.Alive() {
 			m.log("recreating one consumer", Fields{
