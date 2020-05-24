@@ -24,17 +24,13 @@ type Config struct {
 	// Connections describe the connections used by consumers.
 	Connections map[string]Connection `mapstructure:"connections"`
 	// Exchanges have all the exchanges used by consumers.
-	// This exchanges are declared on startup of the rabbitMQ factory.
+	// This exchanges are declared on startup of the rabbids client.
 	Exchanges map[string]ExchangeConfig `mapstructure:"exchanges"`
 	// DeadLetters have all the deadletters queues used internally by other queues
-	// This will be declared at startup of the rabbitMQ factory
+	// This will be declared at startup of the rabbids client.
 	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters"`
 	// Consumers describes configuration list for consumers.
 	Consumers map[string]ConsumerConfig `mapstructure:"consumers"`
-	// Producers describes the configuration list for producers.
-	// In most cases you only need one producer and will need other producers
-	// if you has connection rules (virtual host or permissions by user)
-	Producers map[string]ProducerConfig `mapstructure:"producers"`
 	// Registered Message handlers used by consumers
 	Handlers map[string]MessageHandler
 }
@@ -93,15 +89,6 @@ type Options struct {
 	NoLocal    bool       `mapstructure:"no_local"`
 	AutoAck    bool       `mapstructure:"auto_ack"`
 	Args       amqp.Table `mapstructure:"args"`
-}
-
-// ProducerConfig set the Connection name used for this producer
-// The only required param is the Connection string, the rest of the params
-// will be set by default values.
-type ProducerConfig struct {
-	Connection string        `mapstructure:"connection"`
-	Sleep      time.Duration `mapstructure:"sleep"`
-	Retries    int           `mapstructure:"retries"`
 }
 
 func setConfigDefaults(config *Config) {
