@@ -4,81 +4,76 @@ import (
 	"time"
 )
 
-// Supervisor is the block responsible for creating all the consumers.
-// Keeping track of the current state of consumers and stop/restart consumers when needed.
-type Supervisor struct {
+// supervisor start all the consumers from Rabbids and
+// keep track of the consumers status, restating them when needed
+type supervisor struct {
 	checkAliveness time.Duration
-	factory        *Factory
+	rabbids        *Rabbids
 	consumers      map[string]*Consumer
 	close          chan struct{}
-	log            LoggerFN
 }
 
-// NewSupervisor init a new consumer supervisor to make sure all the consumers are alive.
-func NewSupervisor(config *Config, intervalChecks time.Duration, log LoggerFN) (*Supervisor, error) {
-	factory, err := NewFactory(config, log)
-	if err != nil {
-		return nil, err
-	}
-
-	m := &Supervisor{
+// StartSupervisor init a new supervisor that will start all the consumers from Rabbids
+// and check if the consumers are alive, if not alive it will be restarted.
+// It returns the stop function to gracefully shutdown the consumers and
+// an error if fail to create the consumers the first time.
+func StartSupervisor(rabbids *Rabbids, intervalChecks time.Duration) (stop func(), err error) {
+	s := &supervisor{
 		checkAliveness: intervalChecks,
-		factory:        factory,
-		log:            log,
+		rabbids:        rabbids,
 		consumers:      map[string]*Consumer{},
 		close:          make(chan struct{}),
 	}
 
-	cs, err := m.factory.CreateConsumers()
+	cs, err := s.rabbids.CreateConsumers()
 	if err != nil {
-		return nil, err
+		return s.Stop, err
 	}
 
 	for _, c := range cs {
 		c.Run()
-		m.consumers[c.Name()] = c
+		s.consumers[c.Name()] = c
 	}
 
-	//we use a supervisor as a program structure and didn`t need to close this goroutines
-	go m.checks()
+	go s.loop()
 
-	return m, nil
+	return s.Stop, nil
 }
 
-// checks will execute all the operations received from the internal operation channel
-func (m *Supervisor) checks() {
-	ticker := time.NewTicker(m.checkAliveness)
+func (s *supervisor) loop() {
+	ticker := time.NewTicker(s.checkAliveness)
 
 	for {
 		select {
-		case <-m.close:
-			for name, c := range m.consumers {
+		case <-s.close:
+			for name, c := range s.consumers {
 				c.Kill()
-				delete(m.consumers, name)
+				delete(s.consumers, name)
 			}
-			m.close <- struct{}{}
+			s.close <- struct{}{}
+			return
 		case <-ticker.C:
-			m.restartDeadConsumers()
+			s.restartDeadConsumers()
 		}
 	}
 }
 
-// Stop all the consumers
-func (m *Supervisor) Stop() {
-	m.close <- struct{}{}
-	<-m.close
+// Stop all the running consumers
+func (s *supervisor) Stop() {
+	s.close <- struct{}{}
+	<-s.close
 }
 
-func (m *Supervisor) restartDeadConsumers() {
-	for name, c := range m.consumers {
+func (s *supervisor) restartDeadConsumers() {
+	for name, c := range s.consumers {
 		if !c.Alive() {
-			m.log("recreating one consumer", Fields{
+			s.rabbids.log("recreating one consumer", Fields{
 				"consumer-name": name,
 			})
 
-			nc, err := m.factory.CreateConsumer(name)
+			nc, err := s.rabbids.CreateConsumer(name)
 			if err != nil {
-				m.log("error recreating one consumer", Fields{
+				s.rabbids.log("error recreating one consumer", Fields{
 					"consumer-name": name,
 					"error":         err,
 				})
@@ -86,8 +81,8 @@ func (m *Supervisor) restartDeadConsumers() {
 				continue
 			}
 
-			delete(m.consumers, name)
-			m.consumers[name] = nc
+			delete(s.consumers, name)
+			s.consumers[name] = nc
 			nc.Run()
 		}
 	}

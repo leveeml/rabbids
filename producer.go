@@ -21,8 +21,8 @@ type Producer struct {
 	emitErr       chan PublishingError
 	notifyClose   chan *amqp.Error
 	log           LoggerFN
-	factory       *Factory
 	serializer    Serializer
+	declarations  *declarations
 	exDeclared    map[string]struct{}
 	delayDelivery *delayDelivery
 }
@@ -209,12 +209,12 @@ func (p *Producer) tryToEmitErr(m Publishing, err error) {
 }
 
 func (p *Producer) tryToDeclareTopic(ex string) {
-	if p.factory == nil || p.factory.config == nil || ex == "" {
+	if p.declarations == nil || ex == "" {
 		return
 	}
 
 	if _, ok := p.exDeclared[ex]; !ok {
-		err := p.factory.declareExchange(p.ch, ex)
+		err := p.declarations.declareExchange(p.ch, ex)
 		if err != nil {
 			p.log("failed declaring a exchange", Fields{"err": err, "ex": ex})
 			return

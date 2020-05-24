@@ -53,15 +53,10 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	var wg sync.WaitGroup
 
 	adminClient := getRabbitClient(t, resource)
-	rab, err := rabbids.NewProducer("", rabbids.WithConnection(rabbids.Connection{
-		DSN:     getDSN(resource),
-		Timeout: 100 * time.Millisecond,
-		Sleep:   1000 * time.Millisecond,
-		Retries: 6,
-	}))
+	producer, err := rabbids.NewProducer(getDSN(resource))
 	require.NoError(t, err, "could not connect to: ", getDSN(resource))
 
-	ch := rab.GetAMPQChannel()
+	ch := producer.GetAMPQChannel()
 
 	_, err = ch.QueueDeclare("testProducerWithReconnect", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)
@@ -72,7 +67,7 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	go func() {
 		defer wg.Done()
 
-		for pErr := range rab.EmitErr() {
+		for pErr := range producer.EmitErr() {
 			t.Logf("received a emitErr: %v", pErr)
 			atomic.AddInt64(&emitWithErrors, 1)
 		}
@@ -82,13 +77,13 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 		if i%100 == 0 {
 			closeRabbitMQConnections(t, adminClient)
 		}
-		rab.Emit() <- rabbids.NewPublishing("", "testProducerWithReconnect",
+		producer.Emit() <- rabbids.NewPublishing("", "testProducerWithReconnect",
 			map[string]int{"test": i},
 		)
 		time.Sleep(time.Millisecond)
 	}
 
-	err = rab.Close()
+	err = producer.Close()
 	require.NoError(t, err, "error closing the connection")
 	wg.Wait()
 
@@ -98,20 +93,15 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 
 func testPublishWithDelay(t *testing.T, resource *dockertest.Resource) {
 	adminClient := getRabbitClient(t, resource)
-	rab, err := rabbids.NewProducer("", rabbids.WithConnection(rabbids.Connection{
-		DSN:     getDSN(resource),
-		Timeout: 100 * time.Millisecond,
-		Sleep:   1000 * time.Millisecond,
-		Retries: 6,
-	}))
+	producer, err := rabbids.NewProducer(getDSN(resource))
 	require.NoError(t, err, "could not connect to: ", getDSN(resource))
 
-	ch := rab.GetAMPQChannel()
+	ch := producer.GetAMPQChannel()
 
 	_, err = ch.QueueDeclare("testPublishWithDelay", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)
 
-	err = rab.Send(rabbids.NewDelayedPublishing(
+	err = producer.Send(rabbids.NewDelayedPublishing(
 		"testPublishWithDelay",
 		10*time.Second,
 		map[string]string{"test": "fooo"},
@@ -119,7 +109,7 @@ func testPublishWithDelay(t *testing.T, resource *dockertest.Resource) {
 	require.NoError(t, err, "error on rab.Send")
 	time.Sleep(15 * time.Second)
 
-	err = rab.Close()
+	err = producer.Close()
 	require.NoError(t, err, "error closing the connection")
 
 	count := getQueueLength(t, adminClient, "testPublishWithDelay", 10*time.Second)
