@@ -49,6 +49,7 @@ func NewPublishing(exchange, key string, data interface{}, options ...Publishing
 	return Publishing{
 		Exchange: exchange,
 		Key:      key,
+		Data:     data,
 		Publishing: amqp.Publishing{
 			MessageId: id.String(),
 			Priority:  0,

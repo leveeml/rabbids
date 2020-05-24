@@ -43,7 +43,7 @@ func withDeclarations(d *declarations) ProducerOption {
 // withConnection add the connection config to set up the Connection instead the default values.
 func withConnection(conf Connection) ProducerOption {
 	return func(p *Producer) error {
-		p.Conf = conf
+		p.conf = conf
 
 		return nil
 	}

@@ -1,0 +1,42 @@
+connections:
+  default:
+    dsn: "${RABBITMQ_ADDRESS:=amqp://0.0.0.0:5672}"
+    timeout: 1s
+    sleep: 500ms
+exchanges:
+  events:
+    type: topic
+    options:
+      no_wait: false
+  fallback:
+    type: topic
+dead_letters:
+  fallback:
+    queue:
+      name: "fallback"
+      options:
+        durable: true
+        args:
+          "x-dead-letter-exchange": ""
+          "x-message-ttl": 300000
+      bindings:
+        - routing_keys: ["#"]
+          exchange: fallback
+consumers:
+  consumer-example-1:
+    connection: default
+    dead_letter: fallback
+    workers: 3
+    prefetch_count: 10
+    queue:
+      name: "queue-consumer-example-1"
+      options:
+        durable: true
+        args:
+          "x-dead-letter-exchange": "fallback"
+          "x-dead-letter-routing-key": "queue-consumer-example-1"
+      bindings:
+        - routing_keys:
+            - "*.user.*"
+            - "*.company.*"
+          exchange: events

@@ -13,7 +13,7 @@ import (
 // Producer is an high level rabbitMQ producer instance
 type Producer struct {
 	mutex         sync.RWMutex
-	Conf          Connection
+	conf          Connection
 	conn          *amqp.Connection
 	ch            *amqp.Channel
 	closed        chan struct{}
@@ -39,7 +39,7 @@ type Producer struct {
 //                            the default is the a JSON serializer
 func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	p := &Producer{
-		Conf: Connection{
+		conf: Connection{
 			DSN:     dsn,
 			Retries: DefaultRetries,
 			Sleep:   DefaultSleep,
@@ -120,7 +120,7 @@ func (p *Producer) Send(m Publishing) error {
 	m.Body = b
 	m.ContentType = p.serializer.Name()
 
-	if m.Delay > time.Second {
+	if m.Delay > 0 {
 		err := p.delayDelivery.Declare(p.ch, m.Key)
 		if err != nil {
 			return err
@@ -183,7 +183,7 @@ func (p *Producer) handleAMPQClose(err error) {
 
 func (p *Producer) startConnection() error {
 	p.log("opening a new rabbitmq connection", Fields{})
-	conn, err := openConnection(p.Conf)
+	conn, err := openConnection(p.conf)
 
 	if err != nil {
 		return err
