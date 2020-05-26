@@ -11,18 +11,19 @@ import (
 )
 
 type Producer struct {
-	mutex       sync.RWMutex
-	Conf        Connection
-	conn        *amqp.Connection
-	ch          *amqp.Channel
-	closed      chan struct{}
-	emit        chan Publishing
-	emitErr     chan PublishingError
-	notifyClose chan *amqp.Error
-	log         LoggerFN
-	factory     *Factory
-	serializer  Serializer
-	exDeclared  map[string]struct{}
+	mutex         sync.RWMutex
+	Conf          Connection
+	conn          *amqp.Connection
+	ch            *amqp.Channel
+	closed        chan struct{}
+	emit          chan Publishing
+	emitErr       chan PublishingError
+	notifyClose   chan *amqp.Error
+	log           LoggerFN
+	factory       *Factory
+	serializer    Serializer
+	exDeclared    map[string]struct{}
+	delayDelivery *delayDelivery
 }
 
 func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
@@ -33,12 +34,13 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 			Sleep:   DefaultSleep,
 			Timeout: DefaultTimeout,
 		},
-		emit:       make(chan Publishing, 250),
-		emitErr:    make(chan PublishingError, 250),
-		closed:     make(chan struct{}),
-		log:        NoOPLoggerFN,
-		serializer: &serialization.JSON{},
-		exDeclared: make(map[string]struct{}),
+		emit:          make(chan Publishing, 250),
+		emitErr:       make(chan PublishingError, 250),
+		closed:        make(chan struct{}),
+		log:           NoOPLoggerFN,
+		serializer:    &serialization.JSON{},
+		exDeclared:    make(map[string]struct{}),
+		delayDelivery: &delayDelivery{},
 	}
 
 	for _, opt := range opts {
@@ -103,9 +105,17 @@ func (p *Producer) Send(m Publishing) error {
 	m.Body = b
 	m.ContentType = p.serializer.Name()
 
+	if m.Delay > time.Second {
+		err := p.delayDelivery.Declare(p.ch, m.Key)
+		if err != nil {
+			return err
+		}
+	}
+
 	return retry.Do(func() error {
 		p.mutex.RLock()
 		p.tryToDeclareTopic(m.Exchange)
+
 		err := p.ch.Publish(m.Exchange, m.Key, false, false, m.Publishing)
 		p.mutex.RUnlock()
 

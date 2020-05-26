@@ -14,7 +14,6 @@ import (
 
 func TestBasicIntegrationProducer(t *testing.T) {
 	integrationTest(t)
-	t.Parallel()
 
 	tests := []struct {
 		scenario string
@@ -23,6 +22,10 @@ func TestBasicIntegrationProducer(t *testing.T) {
 		{
 			scenario: "test producer with connection problems",
 			method:   testProducerWithReconnect,
+		},
+		{
+			scenario: "test send delay messages",
+			method:   testPublishWithDelay,
 		},
 	}
 	// -> Setup
@@ -98,4 +101,36 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 
 	count := getQueueLength(t, adminClient, "testProducerWithReconnect", 40*time.Second)
 	t.Logf("Finished published with %d messages inside the queue and %d messages with error", count, emitWithErrors)
+}
+
+func testPublishWithDelay(t *testing.T, resource *dockertest.Resource) {
+	adminClient := getRabbitClient(t, resource)
+	rab, err := rabbids.NewProducer("", rabbids.WithConnection(rabbids.Connection{
+		DSN:     getDSN(resource),
+		Timeout: 100 * time.Millisecond,
+		Sleep:   1000 * time.Millisecond,
+		Retries: 6,
+	}))
+	require.NoError(t, err, "could not connect to: ", getDSN(resource))
+
+	ch := rab.GetAMPQChannel()
+
+	_, err = ch.QueueDeclare("testPublishWithDelay", true, false, false, false, amqp.Table{})
+	require.NoError(t, err)
+
+	go rab.Run()
+
+	err = rab.Send(rabbids.NewDelayedPublishing(
+		"testPublishWithDelay",
+		10*time.Second,
+		map[string]string{"test": "fooo"},
+	))
+	require.NoError(t, err, "error on rab.Send")
+	time.Sleep(15 * time.Second)
+
+	err = rab.Close()
+	require.NoError(t, err, "error closing the connection")
+
+	count := getQueueLength(t, adminClient, "testPublishWithDelay", 10*time.Second)
+	require.Equal(t, 1, count, "expecting the message inside the queue")
 }
