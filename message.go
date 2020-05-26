@@ -60,8 +60,18 @@ func NewPublishing(exchange, key string, data interface{}, options ...Publishing
 }
 
 // SendWithDelay send a message to arrive the queue only after the time is passed.
+// The minimum delay is one second, if the delay is less than the minimum, the minimum will be used.
 // The max delay period is 268,435,455 seconds, or about 8.5 years.
 func NewDelayedPublishing(queue string, delay time.Duration, data interface{}, options ...PublishingOption) Publishing {
+	if delay < time.Second {
+		delay = time.Second
+	}
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		id = uuid.Must(uuid.NewUUID())
+	}
+
 	key, ex := calculateRoutingKey(delay, queue)
 
 	return Publishing{
@@ -70,8 +80,9 @@ func NewDelayedPublishing(queue string, delay time.Duration, data interface{}, o
 		Data:     data,
 		Delay:    delay,
 		Publishing: amqp.Publishing{
-			Priority: 0,
-			Headers:  amqp.Table{},
+			Priority:  0,
+			MessageId: id.String(),
+			Headers:   amqp.Table{},
 		},
 		options: options,
 	}
