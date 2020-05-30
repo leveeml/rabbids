@@ -68,7 +68,12 @@ go run delay-message/main.go
 The delayed message implementation is based on the implementation created by the NServiceBus project.
 For more information go to the docs [here](https://docs.particular.net/transports/rabbitmq/delayed-delivery).
 
+## MessageHandler
+
+MessageHandler is an interface expected by a consumer to process the messages from rabbitMQ.
+See the godocs for more details. If you don't need the close something you can use the `rabbids.MessageHandlerFunc` to pass a function as a MessageHandler.
+
 ## Concurency
 
 Every consumer runs on a separated goroutine and by default process every message (call the MessageHandler) synchronously but it's possible to change that and process the messages with a pool of goroutines.
-To make this you need to set the `worker` attribute inside the ConsumerConfig with the number of concurrent workers you need.
+To make this you need to set the `worker` attribute inside the ConsumerConfig with the number of concurrent workers you need. [example](https://github.com/EmpregoLigado/rabbids/blob/master/_examples/rabbids.yaml#L29).
