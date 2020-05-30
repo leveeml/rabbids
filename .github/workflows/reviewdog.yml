@@ -11,7 +11,7 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
       - name: golangci-lint
-        uses: docker://reviewdog/action-golangci-lint:v1 # Pre-built image
+        uses: docker://reviewdog/action-golangci-lint:v1.6 # Pre-built image
         with:
           github_token: ${{ secrets.github_token }}
           golangci_lint_flags: "--config=.golangci.yml -D golint -D errcheck"

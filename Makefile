@@ -3,7 +3,7 @@ TEST_PATTERN?=./...
 TEST_OPTIONS?=-race
 
 setup: ## Install all the build and lint dependencies
-	sudo curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.21.0
+	sudo curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.27.0
 	GO111MODULE=off go get github.com/mfridman/tparse
 	GO111MODULE=off go get golang.org/x/tools/cmd/cover
 	go get -v -t ./...
