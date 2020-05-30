@@ -10,7 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Producer is an high level rabbitMQ producer instance
+// Producer is an high level rabbitMQ producer instance.
 type Producer struct {
 	mutex         sync.RWMutex
 	conf          Connection
@@ -36,7 +36,7 @@ type Producer struct {
 //                            when added the factory is used to declare the topics
 //                            in the first time the topic is used.
 //   rabbids.WithSerializer - used to set a specific serializer
-//                            the default is the a JSON serializer
+//                            the default is the a JSON serializer.
 func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	p := &Producer{
 		conf: Connection{

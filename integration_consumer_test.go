@@ -131,6 +131,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 
 	stop, err := rabbids.StartSupervisor(rab, 10*time.Millisecond)
 	require.NoError(t, err, "Failed to create the Supervisor")
+
 	defer stop()
 
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 0, 2)

@@ -7,14 +7,14 @@ import (
 	"github.com/streadway/amqp"
 )
 
-//Serializer is the base interface for all message serializers
+//Serializer is the base interface for all message serializers.
 type Serializer interface {
 	Marshal(interface{}) ([]byte, error)
-	// Name return the name used on the content type of the messsage.
+	// Name return the name used on the content type of the messsage
 	Name() string
 }
 
-// Publishing have the fields for sending a message to rabbitMQ
+// Publishing have the fields for sending a message to rabbitMQ.
 type Publishing struct {
 	// Exchange name
 	Exchange string
@@ -39,7 +39,7 @@ type PublishingError struct {
 	Err error
 }
 
-// NewPublishing create a message to be sent by some consumer
+// NewPublishing create a message to be sent by some consumer.
 func NewPublishing(exchange, key string, data interface{}, options ...PublishingOption) Publishing {
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -88,18 +88,20 @@ func NewDelayedPublishing(queue string, delay time.Duration, data interface{}, o
 	}
 }
 
-// Message is an ampq.Delivery with some helper methods used by our systems
+// Message is an ampq.Delivery with some helper methods used by our systems.
 type Message struct {
 	amqp.Delivery
 }
 
 // MessageHandler is the base interface used to consumer AMPQ messages.
 type MessageHandler interface {
+	// Handle a single message, this method MUST be safe for concurrent use
 	Handle(m Message)
+	// Close the handler, this method is called when the consumer is closing
 	Close()
 }
 
-// MessageHandlerFunc implements the MessageHandler interface
+// MessageHandlerFunc implements the MessageHandler interface.
 type MessageHandlerFunc func(m Message)
 
 func (h MessageHandlerFunc) Handle(m Message) {

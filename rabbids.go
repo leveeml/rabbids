@@ -12,7 +12,7 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
-// Rabbids is the main block used to create and run rabbitMQ consumers and producers
+// Rabbids is the main block used to create and run rabbitMQ consumers and producers.
 type Rabbids struct {
 	conns        map[string]*amqp.Connection
 	config       *Config
@@ -55,7 +55,7 @@ func New(config *Config, log LoggerFN) (*Rabbids, error) {
 	return r, nil
 }
 
-// CreateConsumers will iterate over config and create all the consumers
+// CreateConsumers will iterate over config and create all the consumers.
 func (r *Rabbids) CreateConsumers() ([]*Consumer, error) {
 	var consumers []*Consumer
 

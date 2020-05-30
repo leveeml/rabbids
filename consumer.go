@@ -10,7 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Consumer is a high level rabbitMQ consumer
+// Consumer is a high level rabbitMQ consumer.
 type Consumer struct {
 	handler    MessageHandler
 	number     int64
@@ -86,7 +86,7 @@ func (c *Consumer) Alive() bool {
 	return c.t.Alive()
 }
 
-// Name return the consumer name
+// Name return the consumer name.
 func (c *Consumer) Name() string {
 	return c.name
 }

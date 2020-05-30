@@ -126,7 +126,7 @@ func setConfigDefaults(config *Config) {
 
 // RegisterHandler is used to set the MessageHandler used by one Consumer.
 // The consumerName MUST be equal as the name used by the Consumer
-// (the key inside the map of consumers)
+// (the key inside the map of consumers).
 func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 	if c.Handlers == nil {
 		c.Handlers = map[string]MessageHandler{}
@@ -141,10 +141,11 @@ func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 // The syntax is like the syntax used inside the docker-compose file.
 // To use a required variable just use like this: ${ENV_NAME}
 // and to put an default value you can use: ${ENV_NAME:=some-value} inside any value.
-// If a required variable didn't exist, an error will be returned
+// If a required variable didn't exist, an error will be returned.
 func ConfigFromFile(filename string) (*Config, error) {
 	input := map[string]interface{}{}
 	output := &Config{}
+
 	in, err := envsubst.ReadFileRestricted(filename, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the file: %w", err)

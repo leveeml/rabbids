@@ -5,7 +5,7 @@ import (
 )
 
 // supervisor start all the consumers from Rabbids and
-// keep track of the consumers status, restating them when needed
+// keep track of the consumers status, restating them when needed.
 type supervisor struct {
 	checkAliveness time.Duration
 	rabbids        *Rabbids
@@ -51,6 +51,7 @@ func (s *supervisor) loop() {
 				delete(s.consumers, name)
 			}
 			s.close <- struct{}{}
+
 			return
 		case <-ticker.C:
 			s.restartDeadConsumers()
@@ -58,7 +59,7 @@ func (s *supervisor) loop() {
 	}
 }
 
-// Stop all the running consumers
+// Stop all the running consumers.
 func (s *supervisor) Stop() {
 	s.close <- struct{}{}
 	<-s.close

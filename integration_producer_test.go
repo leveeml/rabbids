@@ -64,6 +64,7 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 	var emitWithErrors int64
 
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 
