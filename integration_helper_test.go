@@ -37,7 +37,7 @@ func getRabbitClient(t *testing.T, resource *dockertest.Resource) *rabbithole.Cl
 	return client
 }
 
-// close all open connections to the rabbitmq via the management api
+// close all open connections to the rabbitmq via the management api.
 func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 	t.Helper()
 

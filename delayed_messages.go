@@ -42,6 +42,7 @@ func (d *delayDelivery) Declare(ch *amqp.Channel, key string) error {
 	return ch.QueueBind(queue, fmt.Sprintf("#.%s", queue), DelayDeliveryExchange, false, amqp.Table{})
 }
 
+//nolint:funlen
 func (d *delayDelivery) build(ch *amqp.Channel) error {
 	var bindingKey = "1.#"
 
@@ -53,7 +54,12 @@ func (d *delayDelivery) build(ch *amqp.Channel) error {
 			nextLevel = DelayDeliveryExchange
 		}
 
-		err := ch.ExchangeDeclare(currentLevel, amqp.ExchangeTopic, true, false, false, false, amqp.Table{})
+		err := ch.ExchangeDeclare("fooo", amqp.ExchangeTopic, true, false, false, false, amqp.Table{})
+		if err != nil {
+			return fmt.Errorf("failed to declare exchange \"%s\": %v", "foo", err)
+		}
+
+		err = ch.ExchangeDeclare(currentLevel, amqp.ExchangeTopic, true, false, false, false, amqp.Table{})
 		if err != nil {
 			return fmt.Errorf("failed to declare exchange \"%s\": %v", currentLevel, err)
 		}

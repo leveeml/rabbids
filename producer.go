@@ -10,9 +10,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Producer is an high level rabbitMQ producer instance.
 type Producer struct {
 	mutex         sync.RWMutex
-	Conf          Connection
+	conf          Connection
 	conn          *amqp.Connection
 	ch            *amqp.Channel
 	closed        chan struct{}
@@ -20,15 +21,25 @@ type Producer struct {
 	emitErr       chan PublishingError
 	notifyClose   chan *amqp.Error
 	log           LoggerFN
-	factory       *Factory
 	serializer    Serializer
+	declarations  *declarations
 	exDeclared    map[string]struct{}
 	delayDelivery *delayDelivery
 }
 
+// NewProcucer create a new high level rabbitMQ producer instance
+//
+// dsn is a string in the AMQP URI format
+// the ProducerOptions can be:
+//   rabbids.WithLogger     - to set a logger instance
+//   rabbids.WithFactory    - to use one instance of a factory.
+//                            when added the factory is used to declare the topics
+//                            in the first time the topic is used.
+//   rabbids.WithSerializer - used to set a specific serializer
+//                            the default is the a JSON serializer.
 func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	p := &Producer{
-		Conf: Connection{
+		conf: Connection{
 			DSN:     dsn,
 			Retries: DefaultRetries,
 			Sleep:   DefaultSleep,
@@ -50,13 +61,17 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 	}
 
 	err := p.startConnection()
+	if err != nil {
+		return nil, err
+	}
 
-	return p, err
+	go p.loop()
+
+	return p, nil
 }
 
-// Run starts rabbids channels for emitting and listening for amqp connections closed
-// returns when the producer is shutting down.
-func (p *Producer) Run() {
+// the internal loop to handle signals from rabbitMQ and the async api.
+func (p *Producer) loop() {
 	for {
 		select {
 		case err := <-p.notifyClose:
@@ -105,7 +120,7 @@ func (p *Producer) Send(m Publishing) error {
 	m.Body = b
 	m.ContentType = p.serializer.Name()
 
-	if m.Delay > time.Second {
+	if m.Delay > 0 {
 		err := p.delayDelivery.Declare(p.ch, m.Key)
 		if err != nil {
 			return err
@@ -168,7 +183,7 @@ func (p *Producer) handleAMPQClose(err error) {
 
 func (p *Producer) startConnection() error {
 	p.log("opening a new rabbitmq connection", Fields{})
-	conn, err := openConnection(p.Conf)
+	conn, err := openConnection(p.conf)
 
 	if err != nil {
 		return err
@@ -194,12 +209,12 @@ func (p *Producer) tryToEmitErr(m Publishing, err error) {
 }
 
 func (p *Producer) tryToDeclareTopic(ex string) {
-	if p.factory == nil || p.factory.config == nil || ex == "" {
+	if p.declarations == nil || ex == "" {
 		return
 	}
 
 	if _, ok := p.exDeclared[ex]; !ok {
-		err := p.factory.declareExchange(p.ch, ex)
+		err := p.declarations.declareExchange(p.ch, ex)
 		if err != nil {
 			p.log("failed declaring a exchange", Fields{"err": err, "ex": ex})
 			return

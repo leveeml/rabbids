@@ -31,19 +31,19 @@ func WithLogger(log LoggerFN) ProducerOption {
 	}
 }
 
-// WithFactory will add the factory used to get and declare the exchanges used.
-func WithFactory(f *Factory) ProducerOption {
+// withDeclarations will add the AMQP declarations and be able to declare the exchanges used.
+func withDeclarations(d *declarations) ProducerOption {
 	return func(p *Producer) error {
-		p.factory = f
+		p.declarations = d
 
 		return nil
 	}
 }
 
-// WithConnection add the connection config to set up the Connection instead the default values.
-func WithConnection(conf Connection) ProducerOption {
+// withConnection add the connection config to set up the Connection instead the default values.
+func withConnection(conf Connection) ProducerOption {
 	return func(p *Producer) error {
-		p.Conf = conf
+		p.conf = conf
 
 		return nil
 	}

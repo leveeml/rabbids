@@ -22,7 +22,7 @@ func TestIntegrationConsumerSuite(t *testing.T) {
 	}{
 		{
 			scenario: "validate the behavior when we have connection trouble",
-			method:   testFactoryShouldReturnConnectionErrors,
+			method:   testRabbidsShouldReturnConnectionErrors,
 		},
 		{
 			scenario: "validate the behavior of one healthy consumer",
@@ -53,37 +53,41 @@ func TestIntegrationConsumerSuite(t *testing.T) {
 	}
 }
 
-func testFactoryShouldReturnConnectionErrors(t *testing.T, _ *dockertest.Resource) {
+func testRabbidsShouldReturnConnectionErrors(t *testing.T, _ *dockertest.Resource) {
 	c := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
+
 	t.Run("when we pass an invalid port", func(t *testing.T) {
 		conn := c.Connections["default"]
 		conn.DSN = "amqp://guest:guest@localhost:80/"
 		c.Connections["default"] = conn
-		_, err := rabbids.NewFactory(c, logFNHelper(t))
+		_, err := rabbids.New(c, logFNHelper(t))
 		require.NotNil(t, err)
 		assert.Contains(t, err.Error(), "error opening the connection \"default\": ")
 	})
+
 	t.Run("when we pass an invalid host", func(t *testing.T) {
 		conn := c.Connections["default"]
 		conn.DSN = "amqp://guest:guest@10.255.255.1:5672/"
 		c.Connections["default"] = conn
-		_, err := rabbids.NewFactory(c, logFNHelper(t))
+		_, err := rabbids.New(c, logFNHelper(t))
 		assert.EqualError(t, err, "error opening the connection \"default\": dial tcp 10.255.255.1:5672: i/o timeout")
 	})
 }
 
 func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
-	config := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
-	config.Connections["default"] = setDSN(resource, config.Connections["default"])
-
 	handler := &mockHandler{count: 0, ack: true, tb: t}
-	config.RegisterHandler("messaging_consumer", handler)
-	factory, err := rabbids.NewFactory(config, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the factory")
-	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the Manager")
+	config := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
 
-	defer manager.Stop()
+	config.Connections["default"] = setDSN(resource, config.Connections["default"])
+	config.RegisterHandler("messaging_consumer", handler)
+
+	rab, err := rabbids.New(config, logFNHelper(t))
+	require.NoError(t, err, "Failed to creating rabbids")
+
+	stop, err := rabbids.StartSupervisor(rab, 10*time.Millisecond)
+	require.NoError(t, err, "Failed to create the Supervisor")
+
+	defer stop()
 
 	ch := getChannelHelper(t, resource)
 
@@ -118,14 +122,17 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 		err := m.Ack(false)
 		require.NoError(t, err, "failed to ack the message")
 	})
+
 	config.RegisterHandler("send_consumer", handler)
 	config.RegisterHandler("response_consumer", handler)
-	factory, err := rabbids.NewFactory(config, logFNHelper(t))
-	require.NoError(t, err, "failed to create the rabbids factory")
-	manager, err := rabbids.NewManager(factory, 10*time.Millisecond, logFNHelper(t))
-	require.NoError(t, err, "Failed to create the Manager")
 
-	defer manager.Stop()
+	rab, err := rabbids.New(config, logFNHelper(t))
+	require.NoError(t, err, "failed to initialize the rabbids client")
+
+	stop, err := rabbids.StartSupervisor(rab, 10*time.Millisecond)
+	require.NoError(t, err, "Failed to create the Supervisor")
+
+	defer stop()
 
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 0, 2)
 	sendMessages(t, resource, "event_bus", "service.whatssapp.response", 3, 4)

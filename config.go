@@ -18,22 +18,19 @@ const (
 	DefaultRetries = 5
 )
 
-// Config describes all available options for amqp connection creation.
+// Config describes all available options to declare all the components used by
+// rabbids Consumers and Producers.
 type Config struct {
 	// Connections describe the connections used by consumers.
 	Connections map[string]Connection `mapstructure:"connections"`
 	// Exchanges have all the exchanges used by consumers.
-	// This exchanges are declared on startup of the rabbitMQ factory.
+	// This exchanges are declared on startup of the rabbids client.
 	Exchanges map[string]ExchangeConfig `mapstructure:"exchanges"`
 	// DeadLetters have all the deadletters queues used internally by other queues
-	// This will be declared at startup of the rabbitMQ factory
+	// This will be declared at startup of the rabbids client.
 	DeadLetters map[string]DeadLetter `mapstructure:"dead_letters"`
 	// Consumers describes configuration list for consumers.
 	Consumers map[string]ConsumerConfig `mapstructure:"consumers"`
-	// Producers describes the configuration list for producers.
-	// In most cases you only need one producer and will need other producers
-	// if you has connection rules (virtual host or permissions by user)
-	Producers map[string]ProducerConfig `mapstructure:"producers"`
 	// Registered Message handlers used by consumers
 	Handlers map[string]MessageHandler
 }
@@ -81,7 +78,8 @@ type Binding struct {
 	Options     Options  `mapstructure:"options"`
 }
 
-// Options describes optionals configuration for consumer, queue, bindings and exchanges.
+// Options describes optionals configuration
+// for consumer, queue, bindings and exchanges declaration.
 type Options struct {
 	Durable    bool       `mapstructure:"durable"`
 	Internal   bool       `mapstructure:"internal"`
@@ -91,12 +89,6 @@ type Options struct {
 	NoLocal    bool       `mapstructure:"no_local"`
 	AutoAck    bool       `mapstructure:"auto_ack"`
 	Args       amqp.Table `mapstructure:"args"`
-}
-
-type ProducerConfig struct {
-	Connection string        `mapstructure:"connection"`
-	Sleep      time.Duration `mapstructure:"sleep"`
-	Retries    int           `mapstructure:"retries"`
 }
 
 func setConfigDefaults(config *Config) {
@@ -132,14 +124,24 @@ func setConfigDefaults(config *Config) {
 	}
 }
 
-func (c *Config) RegisterHandler(name string, h MessageHandler) {
+// RegisterHandler is used to set the MessageHandler used by one Consumer.
+// The consumerName MUST be equal as the name used by the Consumer
+// (the key inside the map of consumers).
+func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 	if c.Handlers == nil {
 		c.Handlers = map[string]MessageHandler{}
 	}
 
-	c.Handlers[name] = h
+	c.Handlers[consumerName] = h
 }
 
+// ConfigFromFile read a YAML file and convert it into a Config struct
+// with all the configuration to build the Consumers and producers.
+// Also, it Is possible to use environment variables values inside the YAML file.
+// The syntax is like the syntax used inside the docker-compose file.
+// To use a required variable just use like this: ${ENV_NAME}
+// and to put an default value you can use: ${ENV_NAME:=some-value} inside any value.
+// If a required variable didn't exist, an error will be returned.
 func ConfigFromFile(filename string) (*Config, error) {
 	input := map[string]interface{}{}
 	output := &Config{}
