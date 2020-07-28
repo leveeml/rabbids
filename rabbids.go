@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/google/uuid"
 	"github.com/ivpusic/grpool"
 	retry "github.com/rafaeljesus/retry-go"
 	"github.com/streadway/amqp"
@@ -33,7 +34,7 @@ func New(config *Config, log LoggerFN) (*Rabbids, error) {
 			"connection": name,
 		})
 
-		conn, err := openConnection(cfgConn)
+		conn, err := openConnection(cfgConn, fmt.Sprintf("rabbids.%s", name))
 		if err != nil {
 			return nil, fmt.Errorf("error opening the connection \"%s\": %w", name, err)
 		}
@@ -173,7 +174,7 @@ func (r *Rabbids) getChannel(connectionName string) (*amqp.Channel, error) {
 			},
 		)
 
-		conn, err := openConnection(cfgConn)
+		conn, err := openConnection(cfgConn, fmt.Sprintf("rabbids.%s", connectionName))
 		if err != nil {
 			return nil, fmt.Errorf("error reopening the connection \"%s\": %w", connectionName, err)
 		}
@@ -185,19 +186,26 @@ func (r *Rabbids) getChannel(connectionName string) (*amqp.Channel, error) {
 	return ch, errCH
 }
 
-func openConnection(config Connection) (*amqp.Connection, error) {
+func openConnection(config Connection, name string) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 
-	err := retry.Do(func() error {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		id = uuid.Must(uuid.NewUUID())
+	}
+
+	err = retry.Do(func() error {
 		var err error
 		conn, err = amqp.DialConfig(config.DSN, amqp.Config{
 			Dial: func(network, addr string) (net.Conn, error) {
 				return net.DialTimeout(network, addr, config.Timeout)
 			},
 			Properties: amqp.Table{
-				"information": "https://github.com/EmpregoLigado/rabbids",
-				"product":     "Rabbids",
-				"version":     Version,
+				"information":     "https://github.com/EmpregoLigado/rabbids",
+				"product":         "Rabbids",
+				"version":         Version,
+				"id":              id.String(),
+				"connection_name": name,
 			},
 		})
 		return err

@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Create the initial config from a yaml file
-	config, err := rabbids.ConfigFromFile("rabbids.yaml")
+	config, err := rabbids.ConfigFromFilename("rabbids.yaml")
 	if err != nil {
 		log.Fatalf("failed getting the rabbids config from file: %s", err)
 	}

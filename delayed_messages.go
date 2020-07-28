@@ -44,7 +44,7 @@ func (d *delayDelivery) Declare(ch *amqp.Channel, key string) error {
 
 //nolint:funlen
 func (d *delayDelivery) build(ch *amqp.Channel) error {
-	var bindingKey = "1.#"
+	bindingKey := "1.#"
 
 	for level := maxLevel; level >= 0; level-- {
 		currentLevel := delayedLevelName(level)

@@ -35,11 +35,12 @@ func TestBasicIntegrationProducer(t *testing.T) {
 	require.NoError(t, err, "Could not start resource")
 
 	// -> TearDown
-	defer func() {
+	t.Cleanup(func() {
 		if err := dockerPool.Purge(resource); err != nil {
 			t.Errorf("Could not purge resource: %s", err)
 		}
-	}()
+	})
+
 	// -> Run!
 	for _, test := range tests {
 		tt := test
@@ -50,13 +51,15 @@ func TestBasicIntegrationProducer(t *testing.T) {
 }
 
 func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
+	t.Parallel()
+
 	var wg sync.WaitGroup
 
 	adminClient := getRabbitClient(t, resource)
-	producer, err := rabbids.NewProducer(getDSN(resource))
+	producer, err := rabbids.NewProducer(getDSN(resource), rabbids.WithCustomName("test-reconnect"))
 	require.NoError(t, err, "could not connect to: ", getDSN(resource))
 
-	ch := producer.GetAMPQChannel()
+	ch := producer.GetAMQPChannel()
 
 	_, err = ch.QueueDeclare("testProducerWithReconnect", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)
@@ -76,7 +79,7 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 
 	for i := 1; i <= 1000; i++ {
 		if i%100 == 0 {
-			closeRabbitMQConnections(t, adminClient)
+			closeRabbitMQConnections(t, adminClient, "test-reconnect")
 		}
 		producer.Emit() <- rabbids.NewPublishing("", "testProducerWithReconnect",
 			map[string]int{"test": i},
@@ -93,11 +96,13 @@ func testProducerWithReconnect(t *testing.T, resource *dockertest.Resource) {
 }
 
 func testPublishWithDelay(t *testing.T, resource *dockertest.Resource) {
+	t.Parallel()
+
 	adminClient := getRabbitClient(t, resource)
 	producer, err := rabbids.NewProducer(getDSN(resource))
 	require.NoError(t, err, "could not connect to: ", getDSN(resource))
 
-	ch := producer.GetAMPQChannel()
+	ch := producer.GetAMQPChannel()
 
 	_, err = ch.QueueDeclare("testPublishWithDelay", true, false, false, false, amqp.Table{})
 	require.NoError(t, err)

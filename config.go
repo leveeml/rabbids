@@ -2,6 +2,9 @@ package rabbids
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -17,6 +20,12 @@ const (
 	DefaultSleep   = 500 * time.Millisecond
 	DefaultRetries = 5
 )
+
+// File represents the file operations needed to works with our config loader.
+type File interface {
+	io.Reader
+	Stat() (os.FileInfo, error)
+}
 
 // Config describes all available options to declare all the components used by
 // rabbids Consumers and Producers.
@@ -135,30 +144,52 @@ func (c *Config) RegisterHandler(consumerName string, h MessageHandler) {
 	c.Handlers[consumerName] = h
 }
 
-// ConfigFromFile read a YAML file and convert it into a Config struct
+// ConfigFromFilename is a wrapper to open the file and pass to ConfigFromFile.
+func ConfigFromFilename(filename string) (*Config, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
+	}
+
+	defer file.Close()
+
+	return ConfigFromFile(file)
+}
+
+// ConfigFromFilename  read a YAML file and convert it into a Config struct
 // with all the configuration to build the Consumers and producers.
 // Also, it Is possible to use environment variables values inside the YAML file.
 // The syntax is like the syntax used inside the docker-compose file.
 // To use a required variable just use like this: ${ENV_NAME}
 // and to put an default value you can use: ${ENV_NAME:=some-value} inside any value.
 // If a required variable didn't exist, an error will be returned.
-func ConfigFromFile(filename string) (*Config, error) {
+func ConfigFromFile(file File) (*Config, error) {
 	input := map[string]interface{}{}
 	output := &Config{}
 
-	in, err := envsubst.ReadFileRestricted(filename, true, false)
+	body, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the file: %w", err)
 	}
 
-	switch getConfigType(filename) {
+	in, err := envsubst.BytesRestricted(body, true, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse some environment variables: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the file stats: %w", err)
+	}
+
+	switch getConfigType(stat.Name()) {
 	case "yaml", "yml":
 		err = yaml.Unmarshal(in, &input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode the yaml configuration. %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("file extension %s not supported", getConfigType(filename))
+		return nil, fmt.Errorf("file extension %s not supported", getConfigType(stat.Name()))
 	}
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
