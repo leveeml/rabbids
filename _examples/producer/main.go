@@ -20,7 +20,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Create the initial config from a yaml file
-	config, err := rabbids.ConfigFromFile("rabbids.yaml")
+	config, err := rabbids.ConfigFromFilename("rabbids.yaml")
 	if err != nil {
 		log.Fatalf("failed getting the rabbids config from file: %s", err)
 	}
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// goroutine to publish some messages
-	tick := time.NewTicker(3*time.Second)
+	tick := time.NewTicker(3 * time.Second)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

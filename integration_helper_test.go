@@ -89,7 +89,7 @@ func sendMessages(t *testing.T, resource *dockertest.Resource, ex, key string, s
 func getConfigHelper(t *testing.T, configFile string) *rabbids.Config {
 	t.Helper()
 
-	config, err := rabbids.ConfigFromFile(filepath.Join("testdata", configFile))
+	config, err := rabbids.ConfigFromFilename(filepath.Join("testdata", configFile))
 	require.NoError(t, err)
 
 	return config
