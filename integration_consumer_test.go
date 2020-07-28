@@ -38,12 +38,14 @@ func TestIntegrationConsumerSuite(t *testing.T) {
 	require.NoError(t, err, "Coud not connect to docker")
 	resource, err := dockerPool.Run("rabbitmq", "3.6.12-management", []string{})
 	require.NoError(t, err, "Could not start resource")
+
 	// -> TearDown
-	defer func() {
+	t.Cleanup(func() {
 		if err := dockerPool.Purge(resource); err != nil {
 			t.Errorf("Could not purge resource: %s", err)
 		}
-	}()
+	})
+
 	// -> Run!
 	for _, test := range tests {
 		tt := test
@@ -54,12 +56,17 @@ func TestIntegrationConsumerSuite(t *testing.T) {
 }
 
 func testRabbidsShouldReturnConnectionErrors(t *testing.T, _ *dockertest.Resource) {
+	t.Parallel()
+
 	c := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
 
 	t.Run("when we pass an invalid port", func(t *testing.T) {
 		conn := c.Connections["default"]
 		conn.DSN = "amqp://guest:guest@localhost:80/"
+		conn.Sleep = 10 * time.Microsecond
+		conn.Retries = 0
 		c.Connections["default"] = conn
+
 		_, err := rabbids.New(c, logFNHelper(t))
 		require.NotNil(t, err)
 		assert.Contains(t, err.Error(), "error opening the connection \"default\": ")
@@ -68,13 +75,18 @@ func testRabbidsShouldReturnConnectionErrors(t *testing.T, _ *dockertest.Resourc
 	t.Run("when we pass an invalid host", func(t *testing.T) {
 		conn := c.Connections["default"]
 		conn.DSN = "amqp://guest:guest@10.255.255.1:5672/"
+		conn.Sleep = 10 * time.Microsecond
+		conn.Retries = 0
 		c.Connections["default"] = conn
+
 		_, err := rabbids.New(c, logFNHelper(t))
 		assert.EqualError(t, err, "error opening the connection \"default\": dial tcp 10.255.255.1:5672: i/o timeout")
 	})
 }
 
 func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
+	t.Parallel()
+
 	handler := &mockHandler{count: 0, ack: true, tb: t}
 	config := getConfigHelper(t, "valid_queue_and_exchange_config.yml")
 
@@ -113,6 +125,8 @@ func testConsumerProcess(t *testing.T, resource *dockertest.Resource) {
 }
 
 func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
+	t.Parallel()
+
 	config := getConfigHelper(t, "valid_two_connections.yml")
 	config.Connections["default"] = setDSN(resource, config.Connections["default"])
 	config.Connections["test1"] = setDSN(resource, config.Connections["test1"])
@@ -140,7 +154,7 @@ func testConsumerReconnect(t *testing.T, resource *dockertest.Resource) {
 	require.Len(t, received, 5, "consumer should be processed 5 messages before close connections")
 
 	// get the http client and force to close all the connections
-	closeRabbitMQConnections(t, getRabbitClient(t, resource))
+	closeRabbitMQConnections(t, getRabbitClient(t, resource), "rabbids.test1")
 
 	// send new messages
 	sendMessages(t, resource, "event_bus", "service.whatssapp.send", 5, 6)

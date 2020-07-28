@@ -25,6 +25,7 @@ type Producer struct {
 	declarations  *declarations
 	exDeclared    map[string]struct{}
 	delayDelivery *delayDelivery
+	name          string
 }
 
 // NewProcucer create a new high level rabbitMQ producer instance
@@ -52,6 +53,7 @@ func NewProducer(dsn string, opts ...ProducerOption) (*Producer, error) {
 		serializer:    &serialization.JSON{},
 		exDeclared:    make(map[string]struct{}),
 		delayDelivery: &delayDelivery{},
+		name:          fmt.Sprintf("rabbids.producer.%d", time.Now().Unix()),
 	}
 
 	for _, opt := range opts {
@@ -163,8 +165,13 @@ func (p *Producer) Close() error {
 }
 
 // GetAMQPChannel returns the current connection channel.
-func (p *Producer) GetAMPQChannel() *amqp.Channel {
+func (p *Producer) GetAMQPChannel() *amqp.Channel {
 	return p.ch
+}
+
+// GetAGetAMQPConnection returns the current amqp connetion.
+func (p *Producer) GetAMQPConnection() *amqp.Connection {
+	return p.conn
 }
 
 func (p *Producer) handleAMPQClose(err error) {
@@ -183,8 +190,8 @@ func (p *Producer) handleAMPQClose(err error) {
 
 func (p *Producer) startConnection() error {
 	p.log("opening a new rabbitmq connection", Fields{})
-	conn, err := openConnection(p.conf)
 
+	conn, err := openConnection(p.conf, p.name)
 	if err != nil {
 		return err
 	}

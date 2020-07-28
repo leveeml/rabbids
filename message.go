@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-//Serializer is the base interface for all message serializers.
+// Serializer is the base interface for all message serializers.
 type Serializer interface {
 	Marshal(interface{}) ([]byte, error)
 	// Name return the name used on the content type of the messsage

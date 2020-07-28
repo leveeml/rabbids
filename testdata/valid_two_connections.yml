@@ -3,8 +3,12 @@ connections:
     dsn: "amqp://localhost:5672"
     timeout: 1s
     sleep: 500ms
+    retries: 10
   test1:
     dsn: "amqp://localhost:5672"
+    timeout: 1s
+    sleep: 1s
+    retries: 5
 exchanges:
   event_bus:
     type: topic

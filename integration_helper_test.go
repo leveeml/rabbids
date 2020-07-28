@@ -38,10 +38,15 @@ func getRabbitClient(t *testing.T, resource *dockertest.Resource) *rabbithole.Cl
 }
 
 // close all open connections to the rabbitmq via the management api.
-func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
+func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client, names ...string) {
 	t.Helper()
 
 	timeout := time.After(10 * time.Second)
+	namesIdx := make(map[string]struct{})
+
+	for _, name := range names {
+		namesIdx[name] = struct{}{}
+	}
 
 	for {
 		select {
@@ -51,9 +56,15 @@ func closeRabbitMQConnections(t *testing.T, client *rabbithole.Client) {
 
 			if len(connections) >= 1 {
 				for _, c := range connections {
-					t.Logf("killing connection: (%s) sendPending: %d", c.Name, c.SendPending)
-					_, err := client.CloseConnection(c.Name)
-					require.NoError(t, err, "impossible to kill connection", c.Name)
+					connectionName, _ := c.ClientProperties["connection_name"].(string)
+					if _, exists := namesIdx[connectionName]; exists {
+						t.Logf("killing connection: (%s) name: %s", c.Name, connectionName)
+
+						_, err := client.CloseConnection(c.Name)
+						require.NoError(t, err, "impossible to kill connection", c.Name)
+					} else {
+						t.Logf("skipping closing the connection with name: %v", c.ClientProperties["connection_name"])
+					}
 				}
 
 				return

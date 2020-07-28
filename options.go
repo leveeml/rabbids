@@ -22,6 +22,14 @@ func WithPriority(v int) PublishingOption {
 	}
 }
 
+func WithCustomName(name string) ProducerOption {
+	return func(p *Producer) error {
+		p.name = name
+
+		return nil
+	}
+}
+
 // WithLogger will override the default logger (no Operation Log).
 func WithLogger(log LoggerFN) ProducerOption {
 	return func(p *Producer) error {
