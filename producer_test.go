@@ -3,7 +3,7 @@ package rabbids_test
 import (
 	"testing"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ory-am/dockertest.v3"

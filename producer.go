@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/empregoligado/rabbids/serialization"
+	"github.com/leveeml/rabbids/serialization"
 	retry "github.com/rafaeljesus/retry-go"
 	"github.com/streadway/amqp"
 )

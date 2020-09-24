@@ -1,4 +1,4 @@
-module github.com/empregoligado/rabbids
+module github.com/leveeml/rabbids
 
 go 1.13
 

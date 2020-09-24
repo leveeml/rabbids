@@ -29,7 +29,7 @@ linters-settings:
     # print struct with more effective memory layout or not, false by default
     suggest-new: true
   goimports:
-    local-prefixes: github.com/empregoligado/rabbids
+    local-prefixes: github.com/leveeml/rabbids
   depguard:
     list-type: blacklist
     include-go-root: false

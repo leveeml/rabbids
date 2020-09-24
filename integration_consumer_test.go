@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

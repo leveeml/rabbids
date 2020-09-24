@@ -9,8 +9,8 @@ A library to create AMQP consumers and producers nicely.
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![Go](https://github.com/EmpregoLigado/rabbids/workflows/Go/badge.svg?style=flat-square)](https://github.com/EmpregoLigado/rabbids/actions?query=workflow%3AGo)
 [![Coverage Status](https://img.shields.io/codecov/c/github/empregoligado/rabbids/master.svg?style=flat-square)](https://codecov.io/gh/empregoligado/rabbids)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/empregoligado/rabbids)
-[![Go Report Card](https://goreportcard.com/badge/github.com/empregoligado/rabbids?style=flat-square)](https://goreportcard.com/report/github.com/empregoligado/rabbids)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/leveeml/rabbids)
+[![Go Report Card](https://goreportcard.com/badge/github.com/leveeml/rabbids?style=flat-square)](https://goreportcard.com/report/github.com/leveeml/rabbids)
 
 - A wrapper over [amqp](https://github.com/streadway/amqp) to make possible declare all the blocks (exchanges, queues, dead-letters, bindings) from a YAML or struct.
 - Handle connection problems
@@ -24,7 +24,7 @@ A library to create AMQP consumers and producers nicely.
 ## Installation
 
 ```bash
-go get -u github.com/empregoligado/rabbids
+go get -u github.com/leveeml/rabbids
 ```
 
 ## Usage

@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 )
 
 type event struct {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 	rabbithole "github.com/michaelklishin/rabbit-hole"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"

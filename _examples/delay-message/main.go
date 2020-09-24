@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/empregoligado/rabbids"
+	"github.com/leveeml/rabbids"
 )
 
 type delayEvent struct {
