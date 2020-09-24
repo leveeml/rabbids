@@ -3,8 +3,8 @@
 A library to create AMQP consumers and producers nicely.
 
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
-[![Go](https://github.com/EmpregoLigado/rabbids/workflows/Go/badge.svg?style=flat-square)](https://github.com/EmpregoLigado/rabbids/actions?query=workflow%3AGo)
-[![Coverage Status](https://img.shields.io/codecov/c/github/empregoligado/rabbids/master.svg?style=flat-square)](https://codecov.io/gh/empregoligado/rabbids)
+[![Go](https://github.com/leveeml/rabbids/workflows/Go/badge.svg?style=flat-square)](https://github.com/leveeml/rabbids/actions?query=workflow%3AGo)
+[![Coverage Status](https://img.shields.io/codecov/c/github/leveeml/rabbids/master.svg?style=flat-square)](https://codecov.io/gh/leveeml/rabbids)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/leveeml/rabbids)
 [![Go Report Card](https://goreportcard.com/badge/github.com/leveeml/rabbids?style=flat-square)](https://goreportcard.com/report/github.com/leveeml/rabbids)
 
@@ -72,4 +72,4 @@ See the godocs for more details. If you don't need the close something you can u
 ## Concurency
 
 Every consumer runs on a separated goroutine and by default process every message (call the MessageHandler) synchronously but it's possible to change that and process the messages with a pool of goroutines.
-To make this you need to set the `worker` attribute inside the ConsumerConfig with the number of concurrent workers you need. [example](https://github.com/EmpregoLigado/rabbids/blob/master/_examples/rabbids.yaml#L29).
+To make this you need to set the `worker` attribute inside the ConsumerConfig with the number of concurrent workers you need. [example](https://github.com/leveeml/rabbids/blob/master/_examples/rabbids.yaml#L29).
