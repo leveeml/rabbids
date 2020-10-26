@@ -3,9 +3,9 @@
 A library to create AMQP consumers and producers nicely.
 
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
-[![Go](https://github.com/leveeml/rabbids/workflows/Go/badge.svg?style=flat-square)](https://github.com/leveeml/rabbids/actions?query=workflow%3AGo)
-[![Coverage Status](https://img.shields.io/codecov/c/github/leveeml/rabbids/master.svg?style=flat-square)](https://codecov.io/gh/leveeml/rabbids)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/leveeml/rabbids)
+[![Go](https://img.shields.io/github/workflow/status/leveeml/rabbids/Go/main?style=flat-square)](https://github.com/leveeml/rabbids/actions?query=workflow%3AGo)
+[![Coverage Status](https://img.shields.io/codecov/c/github/leveeml/rabbids/main.svg?style=flat-square)](https://codecov.io/gh/leveeml/rabbids)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/leveeml/rabbids)
 [![Go Report Card](https://goreportcard.com/badge/github.com/leveeml/rabbids?style=flat-square)](https://goreportcard.com/report/github.com/leveeml/rabbids)
 
 - A wrapper over [amqp](https://github.com/streadway/amqp) to make possible declare all the blocks (exchanges, queues, dead-letters, bindings) from a YAML or struct.

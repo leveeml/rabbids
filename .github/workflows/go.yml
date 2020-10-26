@@ -1,0 +1,32 @@
+name: Pull Request CI Check
+on: [push, pull_request]
+jobs:
+  build:
+    name: Run CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+        id: go
+
+      - name: Go env
+        run: go env
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - name: Setup
+        run: make setup
+
+      - name: Tests
+        run: make integration-ci
+
+      - name: Send coverage
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.txt
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
