@@ -30,11 +30,6 @@ linters-settings:
     suggest-new: true
   goimports:
     local-prefixes: github.com/leveeml/rabbids
-  depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages:
-      - github.com/davecgh/go-spew/spew
   lll:
     # max line length, lines longer will be reported. Default is 120.
     # '\t' is counted as 1 character by default, and can be changed with the tab-width option
@@ -70,16 +65,15 @@ linters-settings:
     force-case-trailing-whitespace: 0
 
 linters:
-  enable-all: true
-  disable:
+  enable:
+    - goconst
+    - godot
+    - gofmt
+    - wsl
+    - unparam
+    - gocyclo
     - maligned
-    - prealloc
-    - gosec
-    - gochecknoglobals
-    - goimports
-    - gomnd
-    - goerr113
-    - testpackage
+    - misspell
 
 issues:
   # List of regexps of issue texts to exclude, empty list by default.
